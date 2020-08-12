@@ -111,7 +111,7 @@ class Q_agent:
 
     def update(self, state, dw):
         self.step += 1
-        if self.step % 2000000 == 0 and self.alpha > 0.01:
+        if self.step % 200000 == 0 and self.alpha > 0.02:
             self.alpha *= self.decay
             print('------')
             print(f'step = {self.step}, learning rate = {self.alpha}')
