@@ -1,6 +1,6 @@
 # A Very Simple and Fast Reinforcement Learning Agent for the 2048 Game
 Q-learning (kind of) with linear operator applied to some simple designed one-hot feutures as a value function, and the usual game score as a reward.
-After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. First time i saw 2048 tile was after just 10 minutes of training. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning and it feels like magic to me! :)
+After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. First time i saw 2048 tile was after just 2 minutes of training and 200 epsiodes. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning and it feels like magic to me! :)
 
 ### Requirements
 Almost none. Apart from python3 yopu need to install numpy and pygame libraries, and the latter is needed for show.py, you can run the main learning program without it.
