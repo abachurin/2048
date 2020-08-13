@@ -7,7 +7,7 @@ Almost none. Apart from python3 you need to install `numpy` and `pygame` librari
 How to run it, for those as novice at this as me:
 Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this:
 
-`export PYTHONPATH= {your directory here, for example /User/Documents/GitHub/2048/}`
+`export PYTHONPATH= your directory here, for example /User/Documents/GitHub/2048/`
 
 Now you can run `python3 show.py` and it should fly.
 
