@@ -156,14 +156,14 @@ if __name__ == "__main__":
     if option == 0:
         Show().play()
     elif option == 1:
-        game = Game.load_game("/Users/aleksej/PycharmProjects/restor/best_game.npy")
+        game = Game.load_game("best_game.npy")
         Show().replay(game, speed=200)
     elif option == 2:
-        agent = Q_agent.load_agent("/Users/aleksej/PycharmProjects/restor/best_agent.npy")
+        agent = Q_agent.load_agent("best_agent.npy")
         est = agent.evaluate
         results = Game.trial(estimator=est, num=100)
         Show().replay(results[0], speed=200)
     else:
-        agent = Q_agent.load_agent("/Users/aleksej/PycharmProjects/restor/best_agent.npy")
+        agent = Q_agent.load_agent("best_agent.npy")
         est = agent.evaluate
         Show().watch(estimator=est, speed=20)
