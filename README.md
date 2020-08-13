@@ -3,7 +3,11 @@ Q-learning (kind of) with linear operator applied to some simple designed one-ho
 After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. First time i saw 2048 tile was after just 2 minutes of training and 200 epsiodes. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning and it feels like magic to me! :)
 
 ### Requirements
-Almost none. Apart from python3 you need to install `numpy` and `pygame` libraries. The former you probably already have, and the latter is needed for show.py, the main learning program is fine without it. 
+Almost none. Apart from python3 you need to install `numpy` and `pygame` libraries. The former you probably already have, and the latter is needed for show.py, the main learning program is fine without it.
+How to run it, for those as novice at this as me:
+Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this:
+`export PYTHONPATH= {your directory here, for example /User/Documents/GitHub/2048/}`
+Now you can run `python3 show.py` and it should fly.
 
 ### 2048 Game
 2048 is a single-player sliding block puzzle game designed by Italian web developer Gabriele Cirulli. The game's objective is to slide numbered tiles on a grid to combine them to create a tile with the number 2048. Of course, one can keep playing and achieve bigger tiles, with theoretical but probably unachiavable limit
