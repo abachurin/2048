@@ -10,6 +10,10 @@ Push the green "Code" button. Clone this repository to a directory on your machi
 
 `export PYTHONPATH= your directory here, for example /User/Documents/GitHub/2048/`
 
+Now go the directory:
+
+`cd your directory here, for example /User/Documents/GitHub/2048/game2048/`
+
 Now you can run `python3 show.py` and it should fly. The colors and fonts are a bit different than if i run it from PyCharm for some reason, otherwise seems all fine.
 
 ### 2048 Game
