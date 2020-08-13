@@ -1,5 +1,5 @@
 # A Very Simple and Fast Reinforcement Learning Agent for the 2048 Game
-# After three days of training reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes.
+After three days of training reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. First time i saw 2048 tile was after just 10 minutes of training. Plays a game to 2048 in about 1 second.
 
 ## 2048 Game
 2048 is a single-player sliding block puzzle game designed by Italian web developer Gabriele Cirulli. The game's objective is to slide numbered tiles on a grid to combine them to create a tile with the number 2048. Of course, one can keep playing and achieve bigger tiles, with theoretical but probably unachiavable limit
