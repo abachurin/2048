@@ -174,19 +174,21 @@ class Q_agent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    @staticmethod
+        @staticmethod
     def train_run(num_eps, agent=None, file=None, start_ep=0, saving=True):
         if agent is None:
             agent = Q_agent()
         if file:
             agent.file = file
-        average = []
+        av1000 = []
+        ma100 = []
         reached = [0] * 7
         best_game, best_score = None, 0
         start = time.time()
         for i in range(start_ep + 1, num_eps + 1):
             game = agent.episode()
-            average.append(game.score)
+            ma100.append(game.score)
+            av1000.append(game.score)
             if game.score > best_score:
                 best_game, best_score = game, game.score
                 print('new best game!')
@@ -198,8 +200,8 @@ class Q_agent:
             if max_tile >= 10:
                 reached[max_tile - 10] += 1
             if i - start_ep > 100:
-                average = average[1:]
-            print(i, game.odometer, game.score, 'reached', 1 << np.max(game.row), '100-ma=', int(np.mean(average)))
+                ma100 = ma100[1:]
+            print(i, game.odometer, game.score, 'reached', 1 << np.max(game.row), '100-ma=', int(np.mean(ma100)))
             if saving and i % 100 == 0:
                 agent.save_agent()
                 print(f'agent saved in {agent.file}')
@@ -208,6 +210,8 @@ class Q_agent:
                 print((time.time() - start) / 60, "min")
                 start = time.time()
                 print(f'episode = {i}')
+                print(f'average over last 1000 episodes = {np.mean(av1000)}')
+                av1000 = []
                 for j in range(7):
                     r = sum(reached[j:]) / 10
                     print(f'{1 << (j + 10)} reached in {r} %')
@@ -225,11 +229,11 @@ if __name__ == "__main__":
     # Run the below line to see the magic. How it starts with random moves and immediately
     # starts climbing the ladder
 
-    # agent = V_Agent(n=4, reward=basic_reward, alpha=0.2, file="agent.npy")
+    agent = V_Agent(n=4, reward=basic_reward, alpha=0.2, file="agent.npy")
 
     # Uncomment/comment the above line with the below if you continue training the same agent,
     # update agent.alpha and agent.decay if needed.
 
-    agent = Q_agent.load_agent(file="best_agent.npy")
+    # agent = Q_agent.load_agent(file="best_agent.npy")
 
     Q_agent.train_run(num_eps, agent=agent, file="best_agent.npy", start_ep=55500)
