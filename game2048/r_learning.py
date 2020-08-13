@@ -174,7 +174,7 @@ class Q_agent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-        @staticmethod
+    @staticmethod
     def train_run(num_eps, agent=None, file=None, start_ep=0, saving=True):
         if agent is None:
             agent = Q_agent()
