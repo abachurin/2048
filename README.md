@@ -6,7 +6,9 @@ After three days of training on 1 CPU core of an old Mac-book pro the Agent reac
 Almost none. Apart from python3 you need to install `numpy` and `pygame` libraries. The former you probably already have, and the latter is needed for show.py, the main learning program is fine without it.
 How to run it, for those as novice at this as me:
 Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this:
+
 `export PYTHONPATH= {your directory here, for example /User/Documents/GitHub/2048/}`
+
 Now you can run `python3 show.py` and it should fly.
 
 ### 2048 Game
