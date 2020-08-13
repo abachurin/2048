@@ -4,12 +4,13 @@ After three days of training on 1 CPU core of an old Mac-book pro the Agent reac
 
 ### Requirements
 Almost none. Apart from python3 you need to install `numpy` and `pygame` libraries. The former you probably already have, and the latter is needed for show.py, the main learning program is fine without it.
+
 How to run it, for those as novice at this as me:
 Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this:
 
 `export PYTHONPATH= your directory here, for example /User/Documents/GitHub/2048/`
 
-Now you can run `python3 show.py` and it should fly.
+Now you can run `python3 show.py` and it should fly. The colors and fonts are a bit different than if i run it from PyCharm for some reason, otherwise seems all fine.
 
 ### 2048 Game
 2048 is a single-player sliding block puzzle game designed by Italian web developer Gabriele Cirulli. The game's objective is to slide numbered tiles on a grid to combine them to create a tile with the number 2048. Of course, one can keep playing and achieve bigger tiles, with theoretical but probably unachiavable limit
