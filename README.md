@@ -1,6 +1,9 @@
 # A Very Simple and Fast Reinforcement Learning Agent for the 2048 Game
 After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. First time i saw 2048 tile was after just 10 minutes of training. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning and it feels like magic to me! :)
 
+### Requirements
+Almost none. Apart from python3 yopu need to install numpy and pygame libraries, and the latter is needed for show.py, you can run the main learning program without it.
+
 ## 2048 Game
 2048 is a single-player sliding block puzzle game designed by Italian web developer Gabriele Cirulli. The game's objective is to slide numbered tiles on a grid to combine them to create a tile with the number 2048. Of course, one can keep playing and achieve bigger tiles, with theoretical but probably unachiavable limit
 of 131072 (2 to the power of 17). When I used to play the game as a time-killer and stress-releiver some years ago, the best i've sometimes achieved was 8192 tile and my best score around 150,000.
