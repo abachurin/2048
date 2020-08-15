@@ -233,7 +233,8 @@ class Game:
         print('no more moves possible, final position =')
         print(self.history[-1])
 
-# This is a plain vanilla "let's try to look several moves ahead taking several random tiles at each step"
+# This is a plain vanilla "let's try to look several moves ahead taking several random tiles at each step".
+# Kind of Expectimax algorithm, except we start only when there are few emptry cells left and limit the number of random tiles.
 # If you choose (depth, width) = (5,3) , the statistics will be roughly the following:
 # 1024 = 100%
 # 2048 = 62%
@@ -243,10 +244,9 @@ class Game:
 # You can see that look_forward(depth=5, width=3) reaches 1024 basically always.
 # Whereas Q_agent reaches 1024 in 94-95% of games, and occasionally stops as low as 256 tile.
 # As you can see below, we can put Q_agent valuation (or any other estimator) as an evaluator
-# of the last leave in the tree. The general statistics definitely goes down (i tried).
-# But it may well be we can approach 100% on at least 1024 tile this way.
+# of the last leave in the tree. 
 
-def look_forward(game_init, depth=1, width=1, empty_limit=5, evaluator=None):
+def look_forward(game_init, depth=1, width=1, empty_limit=7, evaluator=None):
     if depth == 1:
         return evaluator(game_init) if evaluator else game_init.score
     empty = game_init.empty_count()
@@ -255,9 +255,12 @@ def look_forward(game_init, depth=1, width=1, empty_limit=5, evaluator=None):
         num_tiles = 1
         depth = 2
     average = 0
-    for i in range(num_tiles):
+    empty_cells = game_init.empty()
+    tile_positions = random.sample(empty_cells, num_tiles)
+    for position in tile_positions:
         game_tile = game_init.copy()
-        game_tile.new_tile()
+        tile = 1 if np.random.randint(10) else 2
+        game_tile.new_tile(tile_position=(tile, position))
         best_score = 0
         for direction in range(4):
             game = game_tile.copy()
