@@ -20,9 +20,9 @@ No way i could train anything and get meaningful statistics otherwise.
 * Finally, learn how to post this project on github in a user-friendly way.
 
 #### When I've already finished this project ..
-I discovered that the solution method I've stumbled upon after alot of wandering is called "N-tuples" and was employed before to this particular game, sure enough. See this excellent article: https://arxiv.org/pdf/1604.05085.pdf
+I discovered that the solution method I've stumbled upon after a lot of wandering is called "N-tuples" and was employed before to this particular game, sure enough. See this excellent article: https://arxiv.org/pdf/1604.05085.pdf
 
-It's always nice to rediscover smart solutions yourself! :)
+It's always nice to rediscover clever tricks yourself! :)
 
 ### Requirements
 Almost none. Apart from Python you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
