@@ -69,9 +69,7 @@ average over last 1000 episodes = 16300.744
 2048 reached in 31.5 %
 4096 reached in 0.3 %
 8192 reached in 0.0 %
-16384 reached in 0.0 %
-32768 reached in 0.0 %
-best score so far = 56776
+best score = 56776
 1024				4096				8				2
 128				64				32				8
 8				256				16				4
@@ -79,4 +77,21 @@ best score so far = 56776
 ```
 <p align = "center">
 <img src = https://github.com/abachurin/2048/blob/master/score_chart_2_tile.png?raw=true>
+</p>
+
+* Model with combinations of 3 adjacent tiles, trained over 10,000 episodes.
+```
+average over last 1000 episodes = 32519.164
+1024 reached in 94.9 %
+2048 reached in 81.7 %
+4096 reached in 13.4 %
+8192 reached in 0.0 %
+best score = 80496
+1024				256				512				2
+32				128				2048				4096
+8				16				64				16
+2				4				8				4
+```
+<p align = "center">
+<img src = https://github.com/abachurin/2048/blob/master/score_chart_3_tile.png?raw=true>
 </p>
