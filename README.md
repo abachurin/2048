@@ -25,8 +25,15 @@ I discovered that the solution method I've stumbled upon after a lot of wanderin
 It's always nice to rediscover clever tricks yourself! I'm leaving my somewhat idiosyncatic terminology as it is.
 
 ### Requirements
-Almost none. Apart from Python you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
+Almost none. Apart from Python you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`.
 
+Update: It seems that installing `pygame` is a bit of headache. The path, depending on the error messages one gets, is roughly this:
+```
+pip3 install homebrew
+brew install gcc
+brew install sdl sdl_image sdl_mixer sdl_ttf portmidi
+pip3 install pygame
+```
 How to run it, for those as novice at this as me:
 
 Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this (for Mac users, not familiar with other systems):
