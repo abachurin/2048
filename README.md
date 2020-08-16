@@ -2,7 +2,15 @@
 Q-learning (kind of) with linear operator applied to some simple designed one-hot features as a value function, and the usual game score as a reward.
 After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. Average score on a 1000 games is around 45,000.
 
-First time i saw 2048 tile was after just 2 minutes of training and 200 epsiodes. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning and it feels like magic to me! :)
+First time i saw 2048 tile was after just 2 minutes of training and 200 epsiodes. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning, which took about three months to complete and it feels like magic to me! :)
+
+### Why do it at all
+In the course of doing this project I've quickly found out that other people already had achieved much better scores results in the past, when the game was popular. See this discussion: https://stackoverflow.com/questions/22342854/what-is-the-optimal-algorithm-for-the-game-2048
+But I used to enjoy the game and I wanted to:
+* Code the self-learning Agent myself.
+* Firstly, implement the game mechanics in Python, improving my rather basic Python sklills in the process.
+* Find a nice way to visualise it, study the basics of Reinforcement Learning and Neural Networks (which i didn't need in the end for this particular project), find the right strategy.
+* Finally, learn how to post this project on github in a user-friendly way.
 
 ### Requirements
 Almost none. Apart from `python3` you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
@@ -95,3 +103,33 @@ best score = 80496
 <p align = "center">
 <img src = https://github.com/abachurin/2048/blob/master/score_chart_3_tile.png?raw=true>
 </p>
+
+* Model that combines my best RL Agent with my version of Expectimax.
+In my code that would be:
+```
+agent = Q_agent.load_agent("best_agent.npy")
+eval = agent.evaluate
+
+def mix_eval(game):
+    if game.empty_count() > 6:
+        return eval(game)
+    else:
+        return estimator_lf(depth=3, width=4, evaluator=eval)(game)
+
+Game.trial(mix_eval, num=100)
+```
+The results:
+```
+Best game =
+4				2				8				4
+16				8				4				2
+256				128				64				32
+8192			512				4096			1024
+ score = 157224 odometer = 6537
+average score of 100 runs = 69743.04
+8192 reached in 18.0%
+4096 reached in 79.0%
+2048 reached in 96.0%
+1024 reached in 98.0%
+3.5 minutes per game, 1 second per move
+```
