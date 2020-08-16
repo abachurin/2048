@@ -157,3 +157,10 @@ average score of 100 runs = 69743.04
 1024 reached in 98.0%
 3.5 minutes per game, 1 second per move
 ```
+You can watch the best game unfold with this code:
+```
+from game2048.r_learning import Game
+from game2048.show import Show
+game = Game.load_game("mixed_with_expectimax.npy")
+Show().replay(game, speed=20)
+```
