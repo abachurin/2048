@@ -5,17 +5,17 @@ After three days of training on 1 CPU core of an old Mac-book pro the Agent reac
 First time i saw 2048 tile was after just 2 minutes of training and 200 epsiodes. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning and it feels like magic to me! :)
 
 ### Requirements
-Almost none. Apart from python3 you need to install `numpy` and `pygame` libraries. The former you probably already have, and the latter is needed for show.py, the main learning program is fine without it.
+Almost none. Apart from `python3` you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
 
 How to run it, for those as novice at this as me:
 
 Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this:
 
-`export PYTHONPATH= your directory here, for example /User/Documents/GitHub/2048/`
+`export PYTHONPATH= [your directory here, for example /User/Documents/GitHub/2048/]`
 
 Now go to the directory:
 
-`cd your directory here, for example /User/Documents/GitHub/2048/game2048/`
+`cd [your directory here, for example /User/Documents/GitHub/2048/game2048/]`
 
 Now you can run `python3 show.py` and it should fly. The colors and fonts are a bit different than if i run it from PyCharm for some reason, otherwise seems all fine.
 
@@ -52,7 +52,6 @@ agent = Q_agent(n=2)
 episodes = 1000
 Q_agent.train_run(episodes, agent=agent, saving=False)
 ```
-Well, technically it's a Neural Network with just one dense layer and no activation, so I can call it Deep Learning, right? Not sure :)
 After that I experimented with triples and quartets for a week, as well as with learning rates and reward functions. The best architecture I've come up with so far is having different variants of rows, columns and (2, 2) squares as features. Reward - a simple game score change. Learning rate - better start high at 0.1 - 0.25 range and gradually move towards 0.01 - 0.02.
 
 ### Conclusion
@@ -60,3 +59,7 @@ The Agent at `best_agent.npy` was trained for 120,000 episodes, looks like it is
 The Agent still occasionally gets stuck at some ridiculously low number, 512 or even 256. I don't know how to deal with it. May be try something akin to boosting, backpropagating some heavy penalty for each state in the low-scoring epoisode.
 Another thing to do is try 5 or 6-tile feautures. But the number of parameters goes up exponentially. Besides, i am not sure it's worth it. 4-tile features already capture an important heuristics - we prefer a row like 1024 256 8 2 to a row like 2 1024 8 256, and the Agent weights most probably reflect that. Same with (2, 2)-squares. You can see how it tries to keep good order if you choose option 3 while running `python3 show.py`.
 Not sure bigger pieces will reveal much more (but i will think about implementing).
+
+### Charts and results
+
+
