@@ -9,7 +9,11 @@ In the course of doing this project I've quickly found out that other people alr
 But I used to enjoy the game and I wanted to:
 * Code the self-learning Agent myself.
 * Firstly, implement the game mechanics in Python, improving my rather basic Python sklills in the process.
-* Find a nice way to visualise it, study the basics of Reinforcement Learning and Neural Networks (which i didn't need in the end for this particular project), find the right strategy.
+* Find a nice way to visualise it, study the basics of Reinforcement Learning and Neural Networks (which i didn't need in the end for this particular project).
+* find the right strategy with the following important restriction:
+- I wanted the code to run on my Mac-book, so no models with huge number of parameters.
+- I did NOT want to wait for ages. Long training or more than 1 second per move - no go.
+No way i could train anything or get relevant statistics otherwise.
 * Finally, learn how to post this project on github in a user-friendly way.
 
 ### Requirements
@@ -49,7 +53,7 @@ I spent two weeks trying to achieve this with NNs of different architectures. Co
 from game2048.game_logic import Game, random_eval
 Game.trial(estimator=random_eval, num=100)
 ```
-to check that. This means that for an Agent to learn that some initial moves are statistically better than others, it has to play a lot of starts.
+to check that. This means that for an Agent to learn that some initial moves are statistically better than others, it has to play a lot of starts, during which it leartns very little or none at all.
 
 ### What finally worked, and I don't really understand why it works so well.
 Firstly, one can notice that the numbers on the tiles are a distraction, they could as well be colors or some other tags. Tiles of the same color produce another color and an increase in score when joined. So, in effect, the values of tiles are categorical features and have to be treated as such, for Neural Networks or any other approach. Now, imagine we could make a huge table and assign to each combination of colors a valuation of the position. After a long time of training the Agent will encounter most positons many times, get the valuations right and thus learn to play an ideal game. Of course, we can't have such a table, plus it will be an extremely slow process. But what if we take some smaller pieces of the board, list all possible states there? We take pairs of adjacent tiles, there are 24 such pairs on the board and, assuming the highest tile we hope to see is 2 ** 15 = 32768, only 16 * 16 = 256 possibilities for those pairs to be. We can then one-hot them, i.e. make 24 * 256 = 6144 features that for any given state of the board are all 0 except 24 which are equal to 1. Now we can try to feed those as an input layer of a Neural Network ...
@@ -124,7 +128,7 @@ Best game =
 4				2				8				4
 16				8				4				2
 256				128				64				32
-8192			        512				4096 			      1024
+8192			        512				4096 			        1024
  score = 157224 odometer = 6537
 average score of 100 runs = 69743.04
 8192 reached in 18.0%
