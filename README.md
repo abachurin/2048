@@ -62,4 +62,7 @@ Not sure bigger pieces will reveal much more (but i will think about implementin
 
 ### Charts and results
 
-
+* Model with combinations of 2 adjacent tiles.
+<p align = "center">
+<img src = https://https://github.com/abachurin/2048/blob/master/score_chart_2_tile.png?raw=true>
+</p>
