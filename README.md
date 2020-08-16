@@ -1,6 +1,6 @@
  # A Very Simple and Fast Reinforcement Learning Agent for the 2048 Game
 Q-learning (kind of) with linear operator applied to some simple designed one-hot features as a value function, and the usual game score as a reward.
-After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. Average score on a 1000 games is around 45,000.
+After three days of training on 1 CPU core of an old Mac-book pro the Agent reaches 2048 in 84% of games, 4096 in 47%, 8192 - sometimes. Average score is around 45,000.
 
 First time i saw 2048 tile was after just 2 minutes of training and 200 epsiodes. Plays a game to 2048 in about 1 second. This is my first project in Machine Learning, which took about three months to complete and it feels like magic to me! :)
 
@@ -10,15 +10,17 @@ In the course of doing this project I've quickly found out that other people alr
 But I used to enjoy the game and I wanted to:
 * Code the self-learning Agent myself.
 * Firstly, implement the game mechanics in Python, improving my rather basic Python sklills in the process.
-* Find a nice way to visualise it, study the basics of Reinforcement Learning and Neural Networks (which i didn't need in the end for this particular project).
-* Find the right strategy with the following **important restriction**:
+* Find a nice way to visualise it, study the basics of Numpy, Reinforcement Learning and Neural Networks (which i didn't need in the end for this particular project).
+* Find the right strategy with the following **important restrictions**:
+
 I wanted the code to run on my Mac-book, so no models with huge number of parameters.
 I did NOT want to wait for ages. Long training or more than 1 second per move - no go.
-No way i could train anything or get relevant statistics otherwise.
+
+No way i could train anything and get meaningful statistics otherwise.
 * Finally, learn how to post this project on github in a user-friendly way.
 
 ### Requirements
-Almost none. Apart from `python3` you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
+Almost none. Apart from Python you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
 
 How to run it, for those as novice at this as me:
 
@@ -68,7 +70,7 @@ Q_agent.train_run(episodes, agent=agent, saving=False)
 After that I experimented with triples and quartets for a week, as well as with learning rates and reward functions. The best architecture I've come up with so far is having different variants of rows, columns and (2, 2) squares as features. Reward - a simple game score change. Learning rate - better start high at 0.1 - 0.25 range and gradually move towards 0.01 - 0.02.
 
 ### Conclusion
-The Agent at `best_agent.npy` was trained for 120,000 episodes, looks like it is still impoving a little on the average score metric. Achieving 4096 more and more often. The rate of 2048 tile games is stuck around 84-85% since about 30-40k episodes.
+The Agent at `best_agent.npy` was trained for 100,000 episodes, looks like it is still impoving a little on the average score metric. Achieving 4096 more and more often. The rate of 2048 tile games is stuck around 84-85% since about 30-40k episodes.
 The Agent still occasionally gets stuck at some ridiculously low number, 512 or even 256. I don't know how to deal with it. May be try something akin to boosting, backpropagating some heavy penalty for each state in the low-scoring epoisode.
 Another thing to do is try 5 or 6-tile feautures. But the number of parameters goes up exponentially. Besides, i am not sure it's worth it. 4-tile features already capture an important heuristics - we prefer a row like 1024 256 8 2 to a row like 2 1024 8 256, and the Agent weights most probably reflect that. Same with (2, 2)-squares. You can see how it tries to keep good order if you choose option 3 while running `python3 show.py`.
 Not sure bigger pieces will reveal much more (but i will think about implementing).
@@ -107,6 +109,15 @@ best score = 80496
 ```
 <p align = "center">
 <img src = https://github.com/abachurin/2048/blob/master/score_chart_3_tile.png?raw=true>
+</p>
+
+* Model with some combinations of 4 adjacent tiles, trained over 100,000 episodes.
+/ I wrote in the comments in `rl_learning.py` how i tried all 4-combinations at the start but it didn't work. /
+```
+
+```
+<p align = "center">
+<img src = https://github.com/abachurin/2048/blob/master/score_chart.png?raw=true>
 </p>
 
 * Model that combines my best RL Agent with my version of Expectimax.
