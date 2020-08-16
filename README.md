@@ -62,7 +62,21 @@ Not sure bigger pieces will reveal much more (but i will think about implementin
 
 ### Charts and results
 
-* Model with combinations of 2 adjacent tiles.
+* Model with combinations of 2 adjacent tiles, trained over 10,000 episodes.
+```
+average over last 1000 episodes = 16300.744
+1024 reached in 73.1 %
+2048 reached in 31.5 %
+4096 reached in 0.3 %
+8192 reached in 0.0 %
+16384 reached in 0.0 %
+32768 reached in 0.0 %
+best score so far = 56776
+1024				4096				8				2
+128				64				32				8
+8				256				16				4
+4				64				32				2
+```
 <p align = "center">
 <img src = https://github.com/abachurin/2048/blob/master/score_chart_2_tile.png?raw=true>
 </p>
