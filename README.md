@@ -22,7 +22,7 @@ No way i could train anything and get meaningful statistics otherwise.
 #### When I've already finished this project ..
 I discovered that the solution method I've stumbled upon after a lot of wandering is called "N-tuples" and was employed before to this particular game, sure enough. See this excellent article: https://arxiv.org/pdf/1604.05085.pdf
 
-It's always nice to rediscover clever tricks yourself! :)
+It's always nice to rediscover clever tricks yourself! I'm leaving my somewhat idiosyncatic terminology as it is.
 
 ### Requirements
 Almost none. Apart from Python you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`
@@ -65,14 +65,14 @@ to check that. This means that for an Agent to learn that some initial moves are
 
 ### What finally worked, and I don't really understand why it works so well.
 Firstly, one can notice that the numbers on the tiles are a distraction, they could as well be colors or some other tags. Tiles of the same color produce another color and an increase in score when joined. So, in effect, the values of tiles are categorical features and have to be treated as such, for Neural Networks or any other approach. Now, imagine we could make a huge table and assign to each combination of colors a valuation of the position. After a long time of training the Agent will encounter most positons many times, get the valuations right and thus learn to play an ideal game. Of course, we can't have such a table, plus it will be an extremely slow process. But what if we take some smaller pieces of the board, list all possible states there? We take pairs of adjacent tiles, there are 24 such pairs on the board and, assuming the highest tile we hope to see is 2 ** 15 = 32768, only 16 * 16 = 256 possibilities for those pairs to be. We can then one-hot them, i.e. make 24 * 256 = 6144 features that for any given state of the board are all 0 except 24 which are equal to 1. Now we can try to feed those as an input layer of a Neural Network ...
-At this point I remember an observation made by a practicing data scientist in Medium article I've read recently: if you want to understand whether your features are any good at all, run a simple linear regression on them. If the result is the same as random noise - probably don't waste your time on more complictated models. So I run a linear regression, which by the way is just a sum of weights of non-zero features in this case - and bingo! - the scores skyrocket and in the first 1000 episodes we already have 50% games with 1024 best tile and 7% with 2048. Run to see yourself, it takes just a couple of minutes.
+At this point I remember an observation made by a practicing data scientist in Medium article I've read recently: if you want to understand whether your features are any good at all, run a simple linear regression on them. If the result is the same as random noise - probably don't waste your time on more complictated models. So I run a linear model, which by the way is just a sum of weights of non-zero features in this case - and bingo! - the scores skyrocket and in the first 1000 episodes we already have 50% games with 1024 best tile and 7% with 2048. Run to see yourself, it takes just a couple of minutes.
 ```
 from game2048.r_learning import Q_agent
 agent = Q_agent(n=2)
 episodes = 1000
 Q_agent.train_run(episodes, agent=agent, saving=False)
 ```
-After that I experimented with triples and quartets for a week, as well as with learning rates and reward functions. The best architecture I've come up with so far is having different variants of rows, columns and (2, 2) squares as features. Reward - a simple game score change. Learning rate - better start high at 0.1 - 0.25 range and gradually move towards 0.01 - 0.02.
+After that I experimented with triples and quartets for a week, as well as with learning rates and reward functions. The best architecture I've come up with so far is having different variants of rows, columns and (2, 2) squares as features. Reward - a simple game score change. Learning rate - better start high at 0.1 - 0.25 range and gradually move towards 0.01 - 0.02. We update weights after every move as there seems to be no way/no bonus to vectorize this.
 
 ### Conclusion
 The Agent at `best_agent.npy` was trained for 100,000 episodes, looks like it is still impoving a little on the average score metric. Achieving 4096 more and more often. The rate of 2048 tile games is stuck around 84-85% since about 30-40k episodes.
