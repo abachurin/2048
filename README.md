@@ -130,6 +130,7 @@ best score = 80496
 * Model that combines my best RL Agent with my version of Expectimax.
 In my code that would be:
 ```
+from game2048.rl_learning import *
 agent = Q_agent.load_agent("best_agent.npy")
 eval = agent.evaluate
 
