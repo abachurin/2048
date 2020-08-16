@@ -29,7 +29,7 @@ Almost none. Apart from Python you only need to install `numpy` and `pygame` lib
 
 How to run it, for those as novice at this as me:
 
-Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this:
+Push the green "Code" button. Clone this repository to a directory on your machine, using `git clone` command or GitHub Desktop. Then add the path to game2048 package like this (for Mac users, not familiar with other systems):
 
 `export PYTHONPATH= [your directory here, for example /User/Documents/GitHub/2048/]`
 
@@ -37,7 +37,7 @@ Now go to the directory:
 
 `cd [your directory here, for example /User/Documents/GitHub/2048/game2048/]`
 
-Now you can run `python3 show.py` and it should fly. The colors and fonts are a bit different than if i run it from PyCharm for some reason, otherwise seems all fine.
+Now you can run `python show.py` and it should fly. The colors and fonts are a bit different than if i run it from PyCharm for some reason, otherwise seems all fine.
 
 ### 2048 Game
 2048 is a single-player sliding block puzzle game designed by Italian web developer Gabriele Cirulli. The game's objective is to slide numbered tiles on a grid to combine them to create a tile with the number 2048. Of course, one can keep playing and achieve bigger tiles, with theoretical but probably unachiavable limit
