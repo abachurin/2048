@@ -74,6 +74,8 @@ Q_agent.train_run(episodes, agent=agent, saving=False)
 ```
 After that I experimented with triples and quartets for a week, as well as with learning rates and reward functions. The best architecture I've come up with so far is having different variants of rows, columns and (2, 2) squares as features. Reward - a simple game score change. Learning rate - better start high at 0.1 - 0.25 range and gradually move towards 0.01 - 0.02. We update weights after every move as there seems to be no way/no bonus to vectorize this.
 
+Now, if we load the best Agent and ask it to evaluate different board positions, we see a strange thing. It doesn't look smart at all. E.g. it would give much the same score to a dead position, where any remaining tile will leave no moves, as to a nice one. Neither there is any obvious preference for monotonic rows/columns. So it is quite strange to witness the Agent playing in a smart way.
+
 ### Conclusion
 The Agent at `best_agent.npy` was trained for 100,000 episodes, looks like it is still impoving a little on the average score metric. Achieving 4096 more and more often. The rate of 2048 tile games is stuck around 84-85% since about 30-40k episodes.
 The Agent still occasionally gets stuck at some ridiculously low number, 512 or even 256. I don't know how to deal with it. May be try something akin to boosting, backpropagating some heavy penalty for each state in the low-scoring epoisode.
