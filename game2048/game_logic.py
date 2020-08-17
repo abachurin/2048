@@ -94,11 +94,6 @@ class Game:
     def empty_count(self):
         return 16 - np.count_nonzero(self.row)
 
-    def pair_count(self):
-        state = self.row
-        zero = np.count_nonzero(state[:, :3] - state[:, 1:]) + np.count_nonzero(state[:3, :] - state[1:, :])
-        return 24 - zero
-
     def game_over(self):
         return not self.empty_count() and not self.pair_count()
 
@@ -234,7 +229,7 @@ class Game:
         print(self.history[-1])
 
 # This is a plain vanilla "let's try to look several moves ahead taking several random tiles at each step".
-# Kind of Expectimax algorithm, except we start only when there are few emptry cells left and limit the number of random tiles.
+# Kind of Expectimax algorithm, except we start only when there are few empty cells left and limit the number of random tiles.
 # If you choose (depth, width) = (5,3) , the statistics will be roughly the following:
 # 1024 = 100%
 # 2048 = 62%
@@ -279,86 +274,6 @@ def estimator_lf(depth=1, width=1, empty_limit=5, evaluator=None):
 
 def random_eval(game):
     return np.random.random()
-
-
-# Below are several estimator functions that i tried, attempting to provide my algos with
-# some heuristics, mostly unsuccessfully. I am leaving them just because "why not let them be"
-
-def snake_eval(game):
-    figures = np.sort(game.row, axis=None)[::-1]
-    f_1, f_2 = figures[:4], figures[4:8]
-
-    def _left_up_vertical(state):
-
-        def _diff(line_1, line_2):
-            return np.sum(1 << np.abs(line_1 - line_2))
-
-        corner = 0 if f_1[0] == state[0, 0] else 1 << (f_1[0] + 1)
-        diff_1 = _diff(state[0], f_1)
-        diff_2_rev = _diff(state[1][::-1], f_2)
-        return - (corner + diff_1 + diff_2_rev)
-
-    best_value = - np.inf
-    state = game.row.copy()
-    for _ in range(4):
-        value = _left_up_vertical(state)
-        best_value = max(value, best_value)
-        state = np.transpose(state)
-        value = _left_up_vertical(state)
-        best_value = max(value, best_value)
-        state = np.rot90(np.transpose(state))
-
-    return max(game.score + best_value * 2, 1)
-
-
-def pairs_and_corners(game):
-    flat = np.ravel(game.row)
-    pos_f = np.argmax(flat)
-    f = flat[pos_f]
-    flat[pos_f] = 0
-    pos_f2 = np.argmax(flat)
-    f_2 = flat[pos_f2]
-    flat[pos_f] = f
-    is_corner = f if f in (game.row[0, 0], game.row[0, 3], game.row[3, 0], game.row[3, 3]) else 0
-    is_middle = -f if f in (game.row[1, 1], game.row[1, 2], game.row[2, 1], game.row[2, 2]) else 0
-
-    def near_cells(pos):
-        adj = []
-        if pos % 4 > 0:
-            adj.append(pos - 1)
-        if pos % 4 < 3:
-            adj.append(pos + 1)
-        if pos // 4 > 0:
-            adj.append(pos - 4)
-        if pos // 4 < 3:
-            adj.append(pos + 4)
-        return [flat[v] for v in adj]
-
-    adj = near_cells(pos_f)
-    is_next_2 = f_2 if f_2 in adj else -f_2
-    if is_corner and is_next_2 > 0 and f != f_2:
-        is_corner += 2
-        is_next_2 += 2
-
-    pairs = max(6, game.pair_count())
-    result = 2 * np.log2(game.score + 1) + pairs + is_corner + is_middle + is_next_2
-    return result
-
-
-def _mc(game, empty, score, odo, runs):
-    if game.empty_count() > empty or game.score < score:
-        return game.score
-    low = np.inf
-    for _ in range(runs):
-        a = game.copy()
-        a.new_tile()
-        b = Game.trial_run(estimator_lf(), game_init=a, step_limit=game.odometer + odo)
-        low = min(low, b.score)
-    return low
-
-
-def monte_carlo(empty=3, score=5000, odo=3, runs=3):
-    return partial(_mc, empty=empty, score=score, odo=odo, runs=runs)
 
 
 if __name__ == "__main__":
