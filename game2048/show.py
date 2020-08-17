@@ -4,10 +4,10 @@ from game2048.r_learning import *
 import sys
 
 
-# I took the core of this game visualisation code from someone's github repo a month ago
+# I took the core of this game visualisation code from someone's github repo several weeks ago
 # when i started doing this project. I love the simplicity and psychedelic colors.
 # It's a shame i forgot where exactly i got it from. If you are the creator - write me
-# and i will give you the credit in the readme file. E-mail there as well.
+# and i will give you the credit in the readme file.
 
 class Show:
 
