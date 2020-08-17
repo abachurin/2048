@@ -22,7 +22,7 @@ No way i could train anything and get meaningful statistics otherwise.
 #### When I've already finished this project ..
 I discovered that the solution method I've stumbled upon after a lot of wandering is called "N-tuples" and was employed before to this particular game, sure enough. See this excellent article: https://arxiv.org/pdf/1604.05085.pdf
 
-It's always nice to rediscover clever tricks yourself! I'm leaving my somewhat idiosyncatic terminology as it is.
+It's always nice to rediscover clever tricks yourself! I'm leaving my somewhat idiosyncatic terminology and the Conclusion as it was written, although i know now that it is incorrect: it does make a lot of sense to try longer tuples.
 
 ### Requirements
 Almost none. Apart from Python you only need to install `numpy` and `pygame` libraries. Both can be installed with `pip install`.
@@ -84,8 +84,8 @@ After that I experimented with triples and quartets for a week, as well as with 
 Now, if we load the best Agent and ask it to evaluate different board positions, we see a strange thing. It doesn't look smart at all. E.g. it would give much the same score to a dead position, where any remaining tile will leave no moves, as to a nice one. Neither there is any obvious preference for monotonic rows/columns. So it is quite strange to witness the Agent playing in a smart way.
 
 ### Conclusion
-The Agent at `best_agent.npy` was trained for 100,000 episodes, looks like it is still impoving a little on the average score metric. Achieving 4096 more and more often. The rate of 2048 tile games is stuck around 84-85% since about 30-40k episodes.
-The Agent still occasionally gets stuck at some ridiculously low number, 512 or even 256. I don't know how to deal with it. May be try something akin to boosting, backpropagating some heavy penalty for each state in the low-scoring epoisode.
+The Agent at `best_agent.npy` was trained for 100,000 episodes. Achieving 4096 more and more often. The rate of 2048 tile games is stuck around 84-85% since about 30k episodes.
+The Agent still occasionally gets stuck at some ridiculously low number, like 256 or 128. I don't know how to deal with it. May be try something akin to boosting, backpropagating some heavy penalty for each state in the low-scoring episode.
 Another thing to do is try 5 or 6-tile feautures. But the number of parameters goes up exponentially. Besides, i am not sure it's worth it. 4-tile features already capture an important heuristics - we prefer a row like 1024 256 8 2 to a row like 2 1024 8 256, and the Agent weights most probably reflect that. Same with (2, 2)-squares. You can see how it tries to keep good order if you choose option 3 while running `python3 show.py`.
 Not sure bigger pieces will reveal much more (but i will think about implementing).
 
