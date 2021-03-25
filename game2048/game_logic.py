@@ -94,6 +94,11 @@ class Game:
     def empty_count(self):
         return 16 - np.count_nonzero(self.row)
 
+    def pair_count(self):
+        state = self.row
+        zero = np.count_nonzero(state[:, :3] - state[:, 1:]) + np.count_nonzero(state[:3, :] - state[1:, :])
+        return 24 - zero
+
     def game_over(self):
         return not self.empty_count() and not self.pair_count()
 

@@ -157,7 +157,7 @@ if __name__ == "__main__":
         Show().play()
     elif option == 1:
         game = Game.load_game("best_game.npy")
-        Show().replay(game, speed=200)
+        Show().replay(game, speed=10)
     elif option == 2:
         agent = Q_agent.load_agent("best_agent.npy")
         est = agent.evaluate

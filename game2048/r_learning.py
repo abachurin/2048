@@ -229,11 +229,11 @@ if __name__ == "__main__":
     # Run the below line to see the magic. How it starts with random moves and immediately
     # starts climbing the ladder
 
-    agent = Q_agent(n=4, reward=basic_reward, alpha=0.2, file="agent.npy")
+    agent = Q_agent(n=4, reward=basic_reward, alpha=0.2, file="new_agent.npy")
 
     # Uncomment/comment the above line with the below if you continue training the same agent,
     # update agent.alpha and agent.decay if needed.
 
     # agent = Q_agent.load_agent(file="best_agent.npy")
 
-    Q_agent.train_run(num_eps, agent=agent, file="best_agent.npy", start_ep=55500)
+    Q_agent.train_run(num_eps, agent=agent, file="new_best_agent.npy", start_ep=0)
