@@ -91,14 +91,13 @@ class Q_agent:
     # a numpy.save method works fine not only for numpy arrays but also for ordinary lists
     def save_agent(self, file=None):
         file = file or self.file
-        arr = np.array([self.weights, self.step, self.alpha, self.n])
-        np.save(file, arr)
-        pass
+        with open(file, 'wb') as f:
+            pickle.dump(self, f, -1)
 
     @staticmethod
     def load_agent(file=save_file):
-        arr = np.load(file, allow_pickle=True)
-        agent = Q_agent(weights=arr[0], step=arr[1], alpha=arr[2], n=arr[3])
+        with open(file, 'rb') as f:
+            agent = pickle.load(f)
         return agent
 
     def features(self, X):
@@ -148,7 +147,7 @@ class Q_agent:
     def episode(self):
         game = Game()
         state, old_label = None, 0
-        while not game.game_over():
+        while not game.game_over(game.row):
             action, best_value = 0, -np.inf
             for direction in range(4):
                 test = game.copy()
@@ -161,7 +160,7 @@ class Q_agent:
                 reward = self.R(game, action)
                 dw = self.alpha * (reward + best_value - old_label) / self.num_feat
                 self.update(state, dw)
-            game.move(action)
+            game.make_move(action)
             state, old_label = game.copy(), best_value
             game.new_tile()
         dw = - self.alpha * old_label / self.num_feat
