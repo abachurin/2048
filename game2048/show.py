@@ -1,7 +1,6 @@
 import pygame
 from pygame.locals import *
 from game2048.r_learning import *
-import sys
 
 
 # I took the core of this game visualisation code from someone's github repo several weeks ago
@@ -38,6 +37,8 @@ class Show:
         self.font = pygame.font.SysFont('monospace', 25)
 
     def display(self, replay_move=None, over=False):
+        if replay_move is not None:
+            replay_move = Game.actions[replay_move]
         self.board.fill(Show.BLACK)
         if over:
             message = self.font.render(
@@ -78,7 +79,7 @@ class Show:
                 if event.type == QUIT:
                     pygame.quit()
                     sys.exit()
-                if self.game.game_over():
+                if self.game.game_over(self.game.row):
                     over = True
                 elif event.type == KEYDOWN:
                     k, direction = event.key, -1
@@ -91,7 +92,7 @@ class Show:
                     elif k == pygame.K_DOWN:
                         direction = 3
                     if direction >= 0:
-                        change = self.game.move(direction)
+                        change = self.game.make_move(direction)
                         if change:
                             self.game.new_tile()
                 if event.type == KEYDOWN and event.key == pygame.K_r:
@@ -101,29 +102,31 @@ class Show:
 
     # replay a game from it's game.history
 
-    def replay(self, game_to_show, speed=1000):
-        over, step, last = False, 0, len(game_to_show.history) - 1
-        while True:
-            self.game = game_to_show.history[step]
-            if step == last:
-                over, move = True, None
+    def replay(self, game_to_show: Game, speed=1000):
+        i = 0
+        self.game = Game(row=game_to_show.starting_position)
+        while i <= game_to_show.odometer:
+            if i == game_to_show.odometer:
+                self.display(over=True, replay_move=None)
             else:
-                move = Game.moves[game_to_show.history[step + 1]]
-            self.display(over=over, replay_move=move)
+                move = game_to_show.moves[i]
+                tile, position = game_to_show.tiles[i]
+                self.display(over=False, replay_move=move)
+                self.game.make_move(move)
+                self.game.row[position] = tile
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
                     return
-            if not over:
-                step += 3
+            i += 1
             pygame.display.update()
             pygame.time.wait(speed)
 
     # watch an algorithm (estimator parameter) play on-line
 
-    def watch(self, estimator=estimator_lf(), game_init=None, speed=500):
+    def watch(self, estimator, depth=0, width=1, ample=6, game_init=None, speed=500):
         game = game_init or Game()
-        for state, move in game.generate_trial_run(game_init=game, estimator=estimator):
+        for state, move in game.generate_run(estimator=estimator, depth=depth, width=width, ample=ample):
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()

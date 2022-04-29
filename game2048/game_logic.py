@@ -1,12 +1,24 @@
 import numpy as np
 import time
-from functools import partial
+import sys
+from pprint import pprint
+import random
+import pickle
+
+
+# basic evaluation methods - take best score, and move randomly
+def random_eval(row, score):
+    return np.random.random()
+
+
+def score_eval(row, score):
+    return score
 
 
 # Looking up a result of moving one row left in the pre-calculated dictionary is
 # about 20% faster than calculating it every time.
 # If we optimistically take 65536 tile as a maximum of what we expect to encounter on the board,
-# the table has 83521 entries. Not much memory for a 20% speedup.
+# the table has the same 65536 entries. Not much memory for a 20% speedup.
 
 def create_table():
     table = {}
@@ -15,25 +27,19 @@ def create_table():
             for c in range(16):
                 for d in range(16):
                     score = 0
-                    change = False
                     line = (a, b, c, d)
                     if (len(set(line)) == 4 and min(line)) or (not max(line)):
-                        table[line] = (line, score, change)
+                        table[line] = (line, score, False)
                         continue
                     line_1 = [v for v in line if v]
                     for i in range(len(line_1) - 1):
                         x = line_1[i]
                         if x == line_1[i + 1]:
                             score += 1 << (x + 1)
-                            change = True
                             line_1[i], line_1[i + 1] = x + 1, 0
                     line_2 = [v for v in line_1 if v]
-                    line_2.extend([0] * (4 - len(line_2)))
-                    if tuple(line_2) == line:
-                        table[line] = (line, score, change)
-                    else:
-                        change = True
-                        table[line] = (line_2, score, change)
+                    line_2 = tuple(line_2 + [0] * (4 - len(line_2)))
+                    table[line] = (line_2, score, line != line_2)
     print('table of moves created')
     return table
 
@@ -46,39 +52,41 @@ def create_table():
 
 class Game:
 
-    moves = {0: 'left', 1: 'up', 2: 'right', 3: 'down'}
+    actions = {0: 'left', 1: 'up', 2: 'right', 3: 'down'}
     table = create_table()
     counter = 0
-    save_file = 'saved_game.npy'
+    save_file = 'saved_game.pkl'
 
-    def __init__(self, score=0, odometer=0, row=None, file=None):
+    def __init__(self, score=0, row=None, file=None):
         self.score = score
-        self.odometer = odometer
+        self.odometer = 0
+        self.moves = []
+        self.tiles = []
         if row is None:
-            self.history = []
             self.row = np.zeros((4, 4), dtype=np.int32)
             self.new_tile()
             self.new_tile()
+            self.tiles = []
+            self.starting_position = self.row.copy()
         else:
             self.row = np.array(row, dtype=np.int32)
-        self.history = []
+            self.starting_position = row
         self.file = file or Game.save_file
 
     def copy(self):
-        return Game(self.score, self.odometer, self.row)
+        return Game(self.score, self.row)
 
     # a numpy.save method works fine not only for numpy arrays but also for ordinary lists
 
     def save_game(self, file=None):
         file = file or self.file
-        arr = np.array(self.history)
-        np.save(file, arr)
+        with open(file, 'wb') as f:
+            pickle.dump(self, f, -1)
 
     @staticmethod
     def load_game(file=save_file):
-        history = np.load(file, allow_pickle=True)
-        game = history[-1]
-        game.history = history
+        with open(file, 'rb') as f:
+            game = pickle.load(f)
         return game
 
     def __eq__(self, other):
@@ -86,128 +94,156 @@ class Game:
 
     def __str__(self):
         return '\n'.join(['\t\t\t\t'.join([str(1 << val if val else 0) for val in j]) for j in self.row]
-                         ) + '\n score = ' + str(self.score) + ' odometer = ' + str(self.odometer)
+                         ) + '\n score = ' + str(self.score) + ' number of moves = ' + str(self.odometer)
 
-    def empty(self):
-        return [(i, j) for j in range(4) for i in range(4) if self.row[i, j] == 0]
+    @staticmethod
+    def empty(row):
+        zeros = np.where(row == 0)
+        return list(zip(zeros[0], zeros[1]))
 
-    def empty_count(self):
-        return 16 - np.count_nonzero(self.row)
+    @staticmethod
+    def empty_count(row):
+        return 16 - np.count_nonzero(row)
 
-    def pair_count(self):
-        state = self.row
-        zero = np.count_nonzero(state[:, :3] - state[:, 1:]) + np.count_nonzero(state[:3, :] - state[1:, :])
-        return 24 - zero
+    @staticmethod
+    def adjacent_pair_count(row):
+        return 24 - np.count_nonzero(row[:, :3] - row[:, 1:]) - np.count_nonzero(row[:3, :] - row[1:, :])
 
-    def game_over(self):
-        return not self.empty_count() and not self.pair_count()
+    def game_over(self, row):
+        return not self.empty_count(row) and not self.adjacent_pair_count(row)
 
-    def new_tile(self, tile_position=None, inplace=True):
-        if not tile_position:
-            em = self.empty()
-            if len(em) == 0:
-                return False, (0, (0, 0))
-            tile = 1 if np.random.randint(10) else 2
-            position = em[np.random.randint(0, len(em))]
-        else:
-            tile, position = tile_position
-        if inplace:
-            self.row[position] = tile
-            self.history.append((tile << 1, position))
+    def create_new_tile(self, row):
+        em = self.empty(row)
+        tile = 1 if random.randrange(10) else 2
+        position = random.choice(em)
         return tile, position
 
-    def _left(self):
+    def new_tile(self):
+        tile, position = self.create_new_tile(self.row)
+        self.row[position] = tile
+        self.tiles.append((tile, position))
+
+    @staticmethod
+    def _left(row, score):
         change = False
+        new_row = row.copy()
+        new_score = score
         for i in range(4):
-            line, score, change_line = Game.table[tuple(self.row[i])]
+            line, score, change_line = Game.table[tuple(row[i])]
             if change_line:
                 change = True
-                self.score += score
-                self.row[i] = line
-        return change
+                new_score += score
+                new_row[i] = line
+        return new_row, new_score, change
 
-    # The numpy library has very nice functions of transpose, rot90, ravel etc.
-    # No actual number relocation happens, just the "view" is changed. So it's very fast.
-
-    def move(self, direction):
+    def pre_move(self, row, score, direction):
         Game.counter += 1
-        self.history.append(self.copy())
+        new_row = np.rot90(row, direction) if direction else row
+        new_row, new_score, change = self._left(new_row, score)
         if direction:
-            self.row = np.rot90(self.row, direction)
-        change = self._left()
-        if direction:
-            self.row = np.rot90(self.row, 4 - direction)
-        if change:
-            self.odometer += 1
-            self.history.append(direction)
+            new_row = np.rot90(new_row, 4 - direction)
+        return new_row, new_score, change
+
+    def make_move(self, direction):
+        self.row, self.score, change = self.pre_move(self.row, self.score, direction)
+        self.odometer += 1
         return change
 
-    @staticmethod
-    def trial_run(estimator, game_init=None, step_limit=100000, verbose=False):
-        game = game_init or Game()
-        while game.odometer < step_limit:
-            if game.game_over():
-                game.history.append(game)
-                return game
-            best_dir, best_value = 0, - np.inf
-            for direction in range(4):
-                variant = game.copy()
-                change = variant.move(direction)
-                if change:
-                    value = estimator(variant)
-                    if value > best_value:
-                        best_dir, best_value = direction, value
-            if verbose:
-                print(game.odometer, ' ', Game.moves[best_dir])
-                print(game)
-            game.move(best_dir)
-            game.new_tile()
-        game.history.append(game)
-        return game
-
-    # Mostly the same as above but this is a generator for Show.watch method
-    # I discovered that as soon as there is "yield" instruction inside the function,
-    # python considers the function as a generator ONLY, and you can't return anything else from it.
-    # I've read up a couple of discussions on stackoverflow. Seems this is it, no fix.
-
-    @staticmethod
-    def generate_trial_run(estimator, game_init=None):
-        game = game_init or Game()
-        while True:
-            if game.game_over():
+    def trial_run(self, estimator, step_limit=100000, depth=0, width=1, ample=6, verbose=False):
+        if verbose:
+            print('Starting position:')
+            print(self)
+        while self.odometer < step_limit:
+            if self.game_over(self.row):
                 return
             best_dir, best_value = 0, - np.inf
+            best_row, best_score = None, None
             for direction in range(4):
-                variant = game.copy()
-                change = variant.move(direction)
+                new_row, new_score, change = self.pre_move(self.row, self.score, direction)
                 if change:
-                    value = estimator(variant)
+                    value = self.look_forward(estimator, new_row, new_score, depth=depth, width=width, ample=ample)
                     if value > best_value:
                         best_dir, best_value = direction, value
-            yield game, Game.moves[best_dir]
-            game.move(best_dir)
-            game.new_tile()
+                        best_row, best_score = new_row, new_score
+            self.moves.append(best_dir)
+            self.odometer += 1
+            self.row, self.score = best_row, best_score
+            self.new_tile()
+            if verbose:
+                print(f'On {self.odometer} we move {Game.actions[best_dir]}')
+                print(self)
+
+    def generate_run(self, estimator, depth=0, width=1, ample=16):
+        while True:
+            if self.game_over(self.row):
+                return
+            best_dir, best_value = 0, - np.inf
+            best_row, best_score = None, None
+            for direction in range(4):
+                new_row, new_score, change = self.pre_move(self.row, self.score, direction)
+                if change:
+                    value = self.look_forward(estimator, new_row, new_score, depth=depth, width=width, ample=ample)
+                    if value > best_value:
+                        best_dir, best_value = direction, value
+                        best_row, best_score = new_row, new_score
+            yield self, best_dir
+            self.moves.append(best_dir)
+            self.odometer += 1
+            self.row, self.score = best_row, best_score
+            self.new_tile()
+
+    def look_forward(self, estimator, row, score, depth, width, ample):
+        if depth == 0:
+            return estimator(row, score)
+        empty = self.empty_count(row)
+        if empty >= ample:
+            return estimator(row, score)
+        num_tiles = min(width, empty)
+        empty_cells = self.empty(row)
+        tile_positions = random.sample(empty_cells, num_tiles)
+        worst = np.inf
+        average = 0
+        for position in tile_positions:
+            new_tile = 1 if random.randrange(10) else 2
+            new_row = row.copy()
+            new_row[position] = new_tile
+            if self.game_over(new_row):
+                best_value = estimator(row, score)
+            else:
+                best_value = - np.inf
+                for direction in range(4):
+                    test_row, test_score, change = self.pre_move(new_row, score, direction)
+                    if change:
+                        value = self.look_forward(estimator, test_row, test_score,
+                                                  depth=depth - 1, width=width, ample=ample)
+                        best_value = max(best_value, value)
+            worst = min(worst, best_value)
+            average += max(best_value, 0)
+        average = average / num_tiles
+        return average
 
     @staticmethod
-    def trial(estimator, num=20, game=None, verbose=False):
+    def trial(estimator, num=20, game_init=None, depth=0, width=1, ample=6, verbose=False):
         start = time.time()
         results = []
         for i in range(num):
             now = time.time()
-            a = Game.trial_run(estimator, game_init=game, verbose=verbose)
-            results.append(a)
-            fig = 1 << np.max(a.row)
-            print(f'game {i}, result {a.score}, moves {a.odometer}, achieved {fig}, time = {(time.time() - now):.2f}')
-        average = np.average([a.score for a in results])
-        figures = [(1 << np.max(a.row)) for a in results]
-        total_odo = sum([a.odometer for a in results])
-        results.sort(key=lambda b: b.score, reverse=True)
+            game = Game() if game_init is None else game_init.copy()
+            game.trial_run(estimator, depth=depth, width=width, ample=ample, verbose=verbose)
+            print(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
+                  f'time = {(time.time() - now):.2f}')
+            results.append(game)
+        average = np.average([v.score for v in results])
+        figures = [(1 << np.max(v.row)) for v in results]
+        total_odo = sum([v.odometer for v in results])
+        results.sort(key=lambda v: v.score, reverse=True)
 
         def share(limit):
-            return len([0 for i in figures if i >= limit]) / len(figures) * 100
+            return len([0 for v in figures if v >= limit]) / len(figures) * 100
 
-        for a in results[:3]:
-            print(a)
+        print('\nBest games:\n')
+        for v in results[:3]:
+            print(v, '\n')
         elapsed = time.time() - start
         print(f'average score of {num} runs = {average}')
         print(f'8192 reached in {share(8192)}%')
@@ -223,66 +259,31 @@ class Game:
     # replay game in text mode, for debugging purposes
 
     def replay(self):
-        for step in range(0, len(self.history) - 1, 3):
-            state = self.history[step]
-            move = Game.moves[self.history[step + 1]]
-            new_tile, position = self.history[step + 2]
-            print(state)
-            print(f'next move = {move}')
-            print(f'new tile = {new_tile} at position = {position}')
-        print('no more moves possible, final position =')
-        print(self.history[-1])
-
-# This is a plain vanilla "let's try to look several moves ahead taking several random tiles at each step".
-# Kind of Expectimax algorithm, except we start only when there are few empty cells left and limit the number of random tiles.
-# If you choose (depth, width) = (5,3) , the statistics will be roughly the following:
-# 1024 = 100%
-# 2048 = 62%
-# 4096 = 4%
-# The game to 2048 takes about 25-30 minutes. Compare this with 1 second (!) for my Q-agent ...
-# The average score and most other statistics is way better for Q-agent with one curious exception:
-# You can see that look_forward(depth=5, width=3) reaches 1024 basically always.
-# Whereas Q_agent reaches 1024 in 94-95% of games, and occasionally stops as low as 256 tile.
-# As you can see below, we can put Q_agent valuation (or any other estimator) as an evaluator
-# of the last leave in the tree. The results are pretty good, as described in the Readme file.
-
-def look_forward(game_init, depth=1, width=1, empty_limit=7, evaluator=None):
-    if depth == 1:
-        return evaluator(game_init) if evaluator else game_init.score
-    empty = game_init.empty_count()
-    num_tiles = min(width, empty)
-    if empty > empty_limit:
-        num_tiles = 1
-        depth = 2
-    average = 0
-    empty_cells = game_init.empty()
-    tile_positions = random.sample(empty_cells, num_tiles)
-    for position in tile_positions:
-        game_tile = game_init.copy()
-        tile = 1 if np.random.randint(10) else 2
-        game_tile.new_tile(tile_position=(tile, position))
-        best_score = 0
-        for direction in range(4):
-            game = game_tile.copy()
-            change = game.move(direction)
-            if change:
-                score = look_forward(game, depth - 1, width, empty_limit, evaluator)
-                best_score = max(score, best_score)
-        average += best_score
-    average /= num_tiles
-    return average
-
-
-def estimator_lf(depth=1, width=1, empty_limit=5, evaluator=None):
-    return partial(look_forward, depth=depth, width=width, empty_limit=empty_limit, evaluator=evaluator)
-
-
-def random_eval(game):
-    return np.random.random()
+        state = self.starting_position
+        replay_game = Game(row=state)
+        print('Starting position:')
+        print(replay_game)
+        for i in range(self.odometer):
+            move = self.moves[i]
+            new_tile, position = self.tiles[i]
+            print(i, new_tile, position)
+            replay_game.make_move(move)
+            replay_game.row[position] = new_tile
+            print(f'On {replay_game.odometer} we move = {Game.actions[move]}, '
+                  f'new tile = {new_tile} at position = {position}')
+            print(replay_game)
+        print('no more moves possible, final position')
 
 
 if __name__ == "__main__":
 
     # Just in case you enjoy watching the paint dry
-    est = estimator_lf(depth=5, width=3)
-    Game.trial(estimator=est, num=100)
+
+    est = random_eval
+    g = Game()
+    g.trial_run(est, verbose=False)
+    print(g)
+    print('___________')
+    g.replay()
+
+    #results = Game.trial(estimator=est, depth=0, width=4, ample=4, num=1)
