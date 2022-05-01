@@ -1,20 +1,16 @@
 from game2048.game_logic import *
 
 
-def basic_reward(game, action):
-    next_game = game.copy()
-    next_game.move(action)
-    return next_game.score - game.score
+def basic_reward(row, score, new_row, new_score):
+    return new_score - score
 
 
 # Intuitively (at least my initial intuition said so :) log-score should work better than the score itself.
 # And indeed it starts learning much faster compared to the basic reward. But then it slows down significantly.
 # I am not sure how to explain it, may be it's just an issue of learning rate tuning ..
 
-def log_reward(game, action):
-    next_game = game.copy()
-    next_game.move(action)
-    return np.log(next_game.score + 1) - np.log(game.score + 1)
+def log_reward(row, score, new_row, new_score):
+    return np.log(new_score + 1) - np.log(score + 1)
 
 
 # features = all adjacent pairs
@@ -66,29 +62,43 @@ def f_4(X):
 
 class Q_agent:
 
-    save_file = "agent.npy"     # saves the weights, training step, current alpha and type of features
+    save_file = "agent.pkl"     # saves the weights, training step, current alpha and type of features
     feature_functions = {2: f_2, 3: f_3, 4: f_4}
     parameter_shape = {2: (24, 256), 3: (52, 4096), 4: (17, 65536)}
 
-    def __init__(self, weights=None, reward=basic_reward, step=0, alpha=0.2, decay=0.999,
-                 file=None, n=4):
+    def __init__(self, weights=None, reward=basic_reward, step=0, alpha=None, decay=None, n=None,
+                 extra_eval=None, file=None):
         self.R = reward
         self.step = step
-        self.alpha = alpha
-        self.decay = decay
         self.file = file or Q_agent.save_file
         self.n = n
         self.num_feat, self.size_feat = Q_agent.parameter_shape[n]
+        self.features = Q_agent.feature_functions[self.n]
+        self.top_tile = 0
+        self.extra_eval = extra_eval or self.zero_extra
+
+        # take default values from config file
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        self.next_decay = self.decay_step = config['decay_step']
+        self.low_alpha_limit = config['low_alpha_limit']
+        self.alpha = alpha or config['alpha']
+        self.decay = decay or config['decay']
+        self.n = n or config['n']
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted to avoid it.
-
         if weights is None:
             self.weights = weights or np.random.random((self.num_feat, self.size_feat)) / 100
+        elif weights == 0:
+            self.weights = np.zeros((self.num_feat, self.size_feat))
         else:
             self.weights = weights
 
-    # a numpy.save method works fine not only for numpy arrays but also for ordinary lists
+    @staticmethod
+    def zero_extra(row, score):
+        return 0
+
     def save_agent(self, file=None):
         file = file or self.file
         with open(file, 'wb') as f:
@@ -100,40 +110,23 @@ class Q_agent:
             agent = pickle.load(f)
         return agent
 
-    def features(self, X):
-        return Q_agent.feature_functions[self.n](X)
-
     # numpy arrays have a nice "advanced slicing" trick, used in this function
-    def evaluate(self, state):
-        features = self.features(state.row)
-        return np.sum(self.weights[range(self.num_feat), features])
+    def evaluate(self, row, score=None):
+        return np.sum(self.weights[range(self.num_feat), self.features(row)]) + self.extra_eval(row, score)
 
-    def update(self, state, dw):
-        self.step += 1
-        if self.step % 200000 == 0 and self.alpha > 0.02:
-            self.alpha *= self.decay
-            print('------')
-            print(f'step = {self.step}, learning rate = {self.alpha}')
-            print('------')
+    def _upd(self, x, dw):
+        features = self.features(x)
+        for i, f in enumerate(features):
+            self.weights[i, f] += dw
 
-        # Didn't use advanced slicing here because i experimented with the idea of updating
-        # a feature only once, even if it happens several times in D4 images of the board
-        # Not in the final version, but maybe makes sense, left it as it is.
-
-        def _upd(X):
-            features = self.features(X)
-            for i, f in enumerate(features):
-                self.weights[i, f] += dw
-
-        # The numpy library has very nice functions of transpose, rot90, ravel etc.
-        # No actual number relocation happens, just the "view" is changed. So it's very fast.
-
-        X = state.row
+    # The numpy library has very nice functions of transpose, rot90, ravel etc.
+    # No actual number relocation happens, just the "view" is changed. So it's very fast.
+    def update(self, row, dw):
         for _ in range(4):
-            _upd(X)
-            X = np.transpose(X)
-            _upd(X)
-            X = np.rot90(np.transpose(X))
+            self._upd(row, dw)
+            row = np.transpose(row)
+            self._upd(row, dw)
+            row = np.rot90(np.transpose(row))
 
     # The game 2048 has two kinds of states. After we make a move - this is the one we try to evaluate,
     # and after the random 2-4 tile is placed afterwards.
@@ -143,29 +136,34 @@ class Q_agent:
     # In this case - we adjust several weights by the same small delta.
     # A very fast and efficient procedure.
     # Then we move in that best direction, add random tile and proceed to the next cycle.
-
     def episode(self):
         game = Game()
         state, old_label = None, 0
+
         while not game.game_over(game.row):
             action, best_value = 0, -np.inf
+            best_row, best_score = None, None
             for direction in range(4):
-                test = game.copy()
-                change = test.move(direction)
+                new_row, new_score, change = game.pre_move(game.row, game.score, direction)
                 if change:
-                    value = self.evaluate(test)
+                    value = self.evaluate(new_row)
                     if value > best_value:
                         action, best_value = direction, value
-            if state:
-                reward = self.R(game, action)
+                        best_row, best_score = new_row, new_score
+            if state is not None:
+                reward = self.R(game.row, game.score, best_row, best_score)
                 dw = self.alpha * (reward + best_value - old_label) / self.num_feat
                 self.update(state, dw)
-            game.make_move(action)
-            state, old_label = game.copy(), best_value
+            game.row, game.score = best_row, best_score
+            game.odometer += 1
+            game.moves.append(action)
+            state, old_label = game.row.copy(), best_value
             game.new_tile()
         dw = - self.alpha * old_label / self.num_feat
         self.update(state, dw)
-        game.history.append(game)
+        self.top_tile = max(self.top_tile, np.max(game.row))
+
+        self.step += 1
         return game
 
     # We save the agent every 100 steps, and best game so far - when we beat the previous record.
@@ -173,19 +171,24 @@ class Q_agent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    @staticmethod
-    def train_run(num_eps, agent=None, file=None, start_ep=0, saving=True):
-        if agent is None:
-            agent = Q_agent()
+    def train_run(self, num_eps, file=None, start_ep=0, saving=True, chart=False):
         if file:
-            agent.file = file
-        av1000 = []
-        ma100 = []
+            self.file = file
+        av1000, ma100, ma_history = [], deque(maxlen=100), []
         reached = [0] * 7
         best_game, best_score = None, 0
-        start = time.time()
+        global_start = start = time.time()
         for i in range(start_ep + 1, num_eps + 1):
-            game = agent.episode()
+
+            # check if it's time to decay learning rate
+            if self.step > self.next_decay and self.alpha > self.low_alpha_limit:
+                self.alpha *= self.decay
+                self.next_decay += self.decay_step
+                print('------')
+                print(f'step = {self.step}, learning rate = {self.alpha}')
+                print('------')
+
+            game = self.episode()
             ma100.append(game.score)
             av1000.append(game.score)
             if game.score > best_score:
@@ -198,12 +201,10 @@ class Q_agent:
             max_tile = np.max(game.row)
             if max_tile >= 10:
                 reached[max_tile - 10] += 1
-            if i - start_ep > 100:
-                ma100 = ma100[1:]
-            print(i, game.odometer, game.score, 'reached', 1 << np.max(game.row), '100-ma=', int(np.mean(ma100)))
-            if saving and i % 100 == 0:
-                agent.save_agent()
-                print(f'agent saved in {agent.file}')
+            ma = int(np.mean(ma100))
+            ma_history.append(ma)
+            if i % 10 == 0:
+                print(f'{i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
             if i % 1000 == 0:
                 print('------')
                 print((time.time() - start) / 60, "min")
@@ -217,22 +218,34 @@ class Q_agent:
                 reached = [0] * 7
                 print(f'best score so far = {best_score}')
                 print(best_game)
-                print(f'current learning rate = {agent.alpha}')
+                print(f'current learning rate = {self.alpha}')
                 print('------')
+                if saving:
+                    self.save_agent()
+                    print(f'agent saved in {self.file}')
+        print(f'Total time for {num_eps} = {time.time() - global_start}')
+        if saving:
+            self.save_agent()
+            print(f'agent saved in {self.file}')
+        if chart:
+            self.chart_ma_100(ma_history)
+
+    @staticmethod
+    def chart_ma_100(ma100):
+        plt.figure(figsize=(8, 6))
+        plt.plot(ma100)
+        plt.show()
 
 
 if __name__ == "__main__":
 
-    num_eps = 100000
+    num_eps = 200000
 
     # Run the below line to see the magic. How it starts with random moves and immediately
     # starts climbing the ladder
 
-    agent = Q_agent(n=4, reward=basic_reward, alpha=0.1, file="new_agent.npy")
+    # a_2 = Q_agent(n=4, file='agent_4.pkl', weights=0)
+    # a_2.train_run(num_eps=10000, start_ep=0, chart=True, file='agent_2.pkl')
 
-    # Uncomment/comment the above line with the below if you continue training the same agent,
-    # update agent.alpha and agent.decay if needed.
-
-    # agent = Q_agent.load_agent(file="best_agent.npy")
-
-    Q_agent.train_run(num_eps, agent=agent, file="new_best_agent.npy", start_ep=0)
+    a_4 = Q_agent(n=4, file='agent_4.pkl')
+    a_4.train_run(num_eps=num_eps, start_ep=0, chart=True, file='agent_4.pkl')

@@ -1,0 +1,8 @@
+{
+  "s3_credentials": "/Users/aleksej/AWS/s3.json",
+  "alpha": 0.2,
+  "decay": 0.999,
+  "decay_step": 500,
+  "low_alpha_limit": 0.02,
+  "n": 4
+}

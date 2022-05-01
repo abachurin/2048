@@ -4,6 +4,10 @@ import sys
 from pprint import pprint
 import random
 import pickle
+import json
+import matplotlib.pyplot as plt
+from functools import partial
+from collections import deque
 
 
 # basic evaluation methods - take best score, and move randomly
@@ -147,6 +151,7 @@ class Game:
     def make_move(self, direction):
         self.row, self.score, change = self.pre_move(self.row, self.score, direction)
         self.odometer += 1
+        self.moves.append(direction)
         return change
 
     def trial_run(self, estimator, step_limit=100000, depth=0, width=1, ample=6, verbose=False):
