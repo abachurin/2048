@@ -97,8 +97,9 @@ class Game:
         return np.array_equal(self.row, other.row)
 
     def __str__(self):
-        return '\n'.join(['\t\t\t\t'.join([str(1 << val if val else 0) for val in j]) for j in self.row]
-                         ) + '\n score = ' + str(self.score) + ' number of moves = ' + str(self.odometer)
+        return '\n'.join([''.join([str(1 << val if val else 0) + '\t' * (4 if (1 << val) < 1000 else 3)
+                                   for val in j]) for j in self.row]) \
+               + f'\n score = {str(self.score)} moves = {str(self.odometer)} reached {1 << np.max(self.row)}'
 
     @staticmethod
     def empty(row):

@@ -66,16 +66,14 @@ class Q_agent:
     feature_functions = {2: f_2, 3: f_3, 4: f_4}
     parameter_shape = {2: (24, 256), 3: (52, 4096), 4: (17, 65536)}
 
-    def __init__(self, weights=None, reward=basic_reward, step=0, alpha=None, decay=None, n=None,
-                 extra_eval=None, file=None):
+    def __init__(self, weights='random', reward=basic_reward, step=0, alpha=None, decay=None, n=None, file=None):
         self.R = reward
         self.step = step
         self.file = file or Q_agent.save_file
         self.n = n
         self.num_feat, self.size_feat = Q_agent.parameter_shape[n]
         self.features = Q_agent.feature_functions[self.n]
-        self.top_tile = 0
-        self.extra_eval = extra_eval or self.zero_extra
+        self.top_tile = 10
 
         # take default values from config file
         with open('config.json', 'r') as f:
@@ -87,17 +85,11 @@ class Q_agent:
         self.n = n or config['n']
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
-        # an initial preference. Most probably this is irrelevant, but i wanted to avoid it.
-        if weights is None:
-            self.weights = weights or np.random.random((self.num_feat, self.size_feat)) / 100
+        # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
+        if weights == 'random':
+            self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
         elif weights == 0:
-            self.weights = np.zeros((self.num_feat, self.size_feat))
-        else:
-            self.weights = weights
-
-    @staticmethod
-    def zero_extra(row, score):
-        return 0
+            self.weights = [[0] * self.size_feat] * self.num_feat
 
     def save_agent(self, file=None):
         file = file or self.file
@@ -112,12 +104,13 @@ class Q_agent:
 
     # numpy arrays have a nice "advanced slicing" trick, used in this function
     def evaluate(self, row, score=None):
-        return np.sum(self.weights[range(self.num_feat), self.features(row)]) + self.extra_eval(row, score)
+        fs = self.features(row)
+        return sum([self.weights[i][fs[i]] for i in range(self.num_feat)])
 
     def _upd(self, x, dw):
         features = self.features(x)
         for i, f in enumerate(features):
-            self.weights[i, f] += dw
+            self.weights[i][features[i]] += dw
 
     # The numpy library has very nice functions of transpose, rot90, ravel etc.
     # No actual number relocation happens, just the "view" is changed. So it's very fast.
@@ -161,10 +154,16 @@ class Q_agent:
             game.new_tile()
         dw = - self.alpha * old_label / self.num_feat
         self.update(state, dw)
-        self.top_tile = max(self.top_tile, np.max(game.row))
 
         self.step += 1
         return game
+
+    def decay_alpha(self):
+        self.alpha = max(self.alpha * self.decay, self.low_alpha_limit)
+        self.next_decay += self.decay_step
+        print('------')
+        print(f'step = {self.step}, learning rate = {self.alpha}')
+        print('------')
 
     # We save the agent every 100 steps, and best game so far - when we beat the previous record.
     # So if you train it and have to make a break at some point - no problem, by loading the agent back
@@ -182,11 +181,7 @@ class Q_agent:
 
             # check if it's time to decay learning rate
             if self.step > self.next_decay and self.alpha > self.low_alpha_limit:
-                self.alpha *= self.decay
-                self.next_decay += self.decay_step
-                print('------')
-                print(f'step = {self.step}, learning rate = {self.alpha}')
-                print('------')
+                self.decay_alpha()
 
             game = self.episode()
             ma100.append(game.score)
@@ -196,14 +191,19 @@ class Q_agent:
                 print('new best game!')
                 print(game)
                 if saving:
-                    game.save_game(file='best_game.npy')
-                    print('game saved at best_game.npy')
+                    game.save_game(file='best_game.pkl')
+                    print('game saved at best_game.pkl')
             max_tile = np.max(game.row)
             if max_tile >= 10:
                 reached[max_tile - 10] += 1
+            # decay learning rate of new maximum tile is achieved
+            if max_tile > self.top_tile:
+                self.top_tile = max_tile
+                self.decay_alpha()
+
             ma = int(np.mean(ma100))
             ma_history.append(ma)
-            if i % 10 == 0:
+            if i % 100 == 0:
                 print(f'{i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
             if i % 1000 == 0:
                 print('------')

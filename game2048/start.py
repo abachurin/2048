@@ -27,3 +27,23 @@ if os.environ.get('S3_URL', 'local') == 'local':
     s3_bucket_name = 'ab2048'
 else:
     pass
+
+rows = [1, 1, 2, 2, 0]
+cols = [0, 1, 2, 3, 4]
+x = np.random.random((4, 10))
+y = x.tolist()
+
+now = time.time()
+for _ in range(100000):
+    rows = [0, 1, 2, 3]
+    cols = [7, 3, 2, 5]
+    s = sum([y[i][f] for i, f in enumerate(cols)])
+print(time.time() - now)
+
+now = time.time()
+for _ in range(100000):
+    rows = [0, 1, 2, 3]
+    cols = [7, 3, 2, 5]
+    s = sum([y[i][cols[i]] for i in range(4)])
+print(time.time() - now)
+
