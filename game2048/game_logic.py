@@ -155,13 +155,15 @@ class Game:
         self.moves.append(direction)
         return change
 
-    def trial_run(self, estimator, step_limit=100000, depth=0, width=1, ample=6, verbose=False):
+    def trial_run(self, estimator, limit_tile=0, step_limit=100000, depth=0, width=1, ample=6, verbose=False):
         if verbose:
             print('Starting position:')
             print(self)
         while self.odometer < step_limit:
             if self.game_over(self.row):
                 return
+            if limit_tile and np.max(self.row) >= limit_tile:
+                break
             best_dir, best_value = 0, - np.inf
             best_row, best_score = None, None
             for direction in range(4):
@@ -179,10 +181,12 @@ class Game:
                 print(f'On {self.odometer} we move {Game.actions[best_dir]}')
                 print(self)
 
-    def generate_run(self, estimator, depth=0, width=1, ample=16):
+    def generate_run(self, estimator, limit_tile=0, depth=0, width=1, ample=16):
         while True:
             if self.game_over(self.row):
                 return
+            if limit_tile and np.max(self.row) >= limit_tile:
+                break
             best_dir, best_value = 0, - np.inf
             best_row, best_score = None, None
             for direction in range(4):
@@ -229,13 +233,13 @@ class Game:
         return average
 
     @staticmethod
-    def trial(estimator, num=20, game_init=None, depth=0, width=1, ample=6, verbose=False):
+    def trial(estimator, limit_tile=0, num=20, game_init=None, depth=0, width=1, ample=6, verbose=False):
         start = time.time()
         results = []
         for i in range(num):
             now = time.time()
             game = Game() if game_init is None else game_init.copy()
-            game.trial_run(estimator, depth=depth, width=width, ample=ample, verbose=verbose)
+            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, ample=ample, verbose=verbose)
             print(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
                   f'time = {(time.time() - now):.2f}')
             results.append(game)
