@@ -47,6 +47,17 @@ def f_4(X):
     return np.concatenate([X_vert, X_hor, X_sq])
 
 
+def max_tile_in_feature(n):
+    result = {}
+    for i in range(1 << (4 * n)):
+        start, top = i, 0
+        while start:
+            top = max(top, start % 16)
+            start //= 16
+        result[i] = top
+    return result
+
+
 # The RL agent. It is not actually Q, as it tries to learn values of the states (V), rather than actions (Q).
 # Not sure what is the correct terminology here, this is definitely a TD(0), basically a modified Q-learning.
 # The important details:
@@ -66,14 +77,12 @@ class Q_agent:
     feature_functions = {2: f_2, 3: f_3, 4: f_4}
     parameter_shape = {2: (24, 256), 3: (52, 4096), 4: (17, 65536)}
 
-    def __init__(self, weights='random', reward=basic_reward, step=0, alpha=None, decay=None, n=None, file=None):
+    def __init__(self, weights='random', reward=basic_reward, mode='simple', step=0,
+                 alpha=None, decay=None, n=None, file=None):
         self.R = reward
         self.step = step
         self.file = file or Q_agent.save_file
-        self.n = n
-        self.num_feat, self.size_feat = Q_agent.parameter_shape[n]
-        self.features = Q_agent.feature_functions[self.n]
-        self.top_tile = 10
+        self._upd = self._upd_simple if mode == 'simple' else self._upd_scaled
 
         # take default values from config file
         with open('config.json', 'r') as f:
@@ -83,6 +92,12 @@ class Q_agent:
         self.alpha = alpha or config['alpha']
         self.decay = decay or config['decay']
         self.n = n or config['n']
+
+        self.num_feat, self.size_feat = Q_agent.parameter_shape[n]
+        self.features = Q_agent.feature_functions[self.n]
+        self.top_tile = 10
+        self.max_in_f = max_tile_in_feature(n)
+        self.lr = {v: self.alpha for v in range(16)}
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
@@ -104,13 +119,16 @@ class Q_agent:
 
     # numpy arrays have a nice "advanced slicing" trick, used in this function
     def evaluate(self, row, score=None):
-        fs = self.features(row)
-        return sum([self.weights[i][fs[i]] for i in range(self.num_feat)])
+        return sum([self.weights[i][f] for i, f in enumerate(self.features(row))])
 
-    def _upd(self, x, dw):
-        features = self.features(x)
-        for i, f in enumerate(features):
-            self.weights[i][features[i]] += dw
+    def _upd_simple(self, x, dw):
+        for i, f in enumerate(self.features(x)):
+            self.weights[i][f] += dw * self.lr[self.max_in_f[f]]
+
+    def _upd_scaled(self, x, dw):
+        dw *= self.alpha
+        for i, f in enumerate(self.features(x)):
+            self.weights[i][f] += dw
 
     # The numpy library has very nice functions of transpose, rot90, ravel etc.
     # No actual number relocation happens, just the "view" is changed. So it's very fast.
@@ -144,25 +162,34 @@ class Q_agent:
                         action, best_value = direction, value
                         best_row, best_score = new_row, new_score
             if state is not None:
-                reward = self.R(game.row, game.score, best_row, best_score)
-                dw = self.alpha * (reward + best_value - old_label) / self.num_feat
+                # reward = self.R(game.row, game.score, best_row, best_score)
+                # dw = (reward + best_value - old_label) / self.num_feat
+                dw = (best_score - game.score + best_value - old_label) / self.num_feat
                 self.update(state, dw)
             game.row, game.score = best_row, best_score
             game.odometer += 1
             game.moves.append(action)
             state, old_label = game.row.copy(), best_value
             game.new_tile()
-        dw = - self.alpha * old_label / self.num_feat
+        dw = - old_label / self.num_feat
         self.update(state, dw)
 
         self.step += 1
         return game
 
+    def _display_lr(self):
+        print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
+        pprint({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr})
+        print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
+
     def decay_alpha(self):
+        for i in range(16):
+            if i < self.top_tile:
+                self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
         self.alpha = max(self.alpha * self.decay, self.low_alpha_limit)
-        self.next_decay += self.decay_step
+        self.next_decay = self.step + self.decay_step
         print('------')
-        print(f'step = {self.step}, learning rate = {self.alpha}')
+        self._display_lr()
         print('------')
 
     # We save the agent every 100 steps, and best game so far - when we beat the previous record.
@@ -170,14 +197,12 @@ class Q_agent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    def train_run(self, num_eps, file=None, start_ep=0, saving=True, chart=False):
-        if file:
-            self.file = file
+    def train_run(self, num_eps, file_for_game='best_game.pkl', start_ep=0, saving=True, chart=False):
         av1000, ma100, ma_history = [], deque(maxlen=100), []
         reached = [0] * 7
         best_game, best_score = None, 0
         global_start = start = time.time()
-        for i in range(start_ep + 1, num_eps + 1):
+        for i in range(start_ep + 1, start_ep + num_eps + 2):
 
             # check if it's time to decay learning rate
             if self.step > self.next_decay and self.alpha > self.low_alpha_limit:
@@ -188,11 +213,11 @@ class Q_agent:
             av1000.append(game.score)
             if game.score > best_score:
                 best_game, best_score = game, game.score
-                print('new best game!')
+                print(f'new best game at episode {i}!')
                 print(game)
                 if saving:
-                    game.save_game(file='best_game.pkl')
-                    print('game saved at best_game.pkl')
+                    game.save_game(file=file_for_game)
+                    print(f'game saved at {file_for_game}')
             max_tile = np.max(game.row)
             if max_tile >= 10:
                 reached[max_tile - 10] += 1
@@ -218,7 +243,7 @@ class Q_agent:
                 reached = [0] * 7
                 print(f'best score so far = {best_score}')
                 print(best_game)
-                print(f'current learning rate = {self.alpha}')
+                self._display_lr()
                 print('------')
                 if saving:
                     self.save_agent()
@@ -244,8 +269,5 @@ if __name__ == "__main__":
     # Run the below line to see the magic. How it starts with random moves and immediately
     # starts climbing the ladder
 
-    # a_2 = Q_agent(n=4, file='agent_4.pkl', weights=0)
-    # a_2.train_run(num_eps=10000, start_ep=0, chart=True, file='agent_2.pkl')
-
-    a_4 = Q_agent(n=4, file='agent_4.pkl')
-    a_4.train_run(num_eps=num_eps, start_ep=0, chart=True, file='agent_4.pkl')
+    a_4 = Q_agent(n=4, mode='scaled', file='agent_4.pkl')
+    a_4.train_run(num_eps=num_eps, start_ep=0, chart=True)

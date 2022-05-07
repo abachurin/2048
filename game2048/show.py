@@ -147,14 +147,10 @@ class Show:
 
 if __name__ == "__main__":
 
-    for i in (2,):
-        generate_max_tile_in_feature(i)
-    x = input()
     a = Q_agent.load_agent('agent_4.pkl')
-    g = Game()
-    g.trial_run(estimator=a.evaluate, step_limit=200)
-    print(g)
-    print(f_4(g.row))
+    print(a.step, a.next_decay, a.alpha, a.low_alpha_limit, a.decay)
+    a.next_decay = 34800
+    a.save_agent()
     sys.exit()
 
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
