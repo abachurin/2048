@@ -83,6 +83,9 @@ class Q_agent:
         self.step = step
         self.file = file or Q_agent.save_file
         self._upd = self._upd_simple if mode == 'simple' else self._upd_scaled
+        self.top_game = None
+        self.top_score = 0
+        self.train_history = []
 
         # take default values from config file
         with open('config.json', 'r') as f:
@@ -98,6 +101,7 @@ class Q_agent:
         self.top_tile = 10
         self.max_in_f = max_tile_in_feature(n)
         self.lr = {v: self.alpha for v in range(16)}
+        self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
@@ -121,11 +125,11 @@ class Q_agent:
     def evaluate(self, row, score=None):
         return sum([self.weights[i][f] for i, f in enumerate(self.features(row))])
 
-    def _upd_simple(self, x, dw):
-        for i, f in enumerate(self.features(x)):
-            self.weights[i][f] += dw * self.lr[self.max_in_f[f]]
-
     def _upd_scaled(self, x, dw):
+        for i, f in enumerate(self.features(x)):
+            self.weights[i][f] += dw * self.lr_from_f[f]
+
+    def _upd_simple(self, x, dw):
         dw *= self.alpha
         for i, f in enumerate(self.features(x)):
             self.weights[i][f] += dw
@@ -179,13 +183,14 @@ class Q_agent:
 
     def _display_lr(self):
         print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
-        pprint({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr})
+        pprint({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
         print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
 
     def decay_alpha(self):
         for i in range(16):
-            if i < self.top_tile:
+            if i < self.top_tile - 1:
                 self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
+        self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
         self.alpha = max(self.alpha * self.decay, self.low_alpha_limit)
         self.next_decay = self.step + self.decay_step
         print('------')
@@ -198,9 +203,8 @@ class Q_agent:
     # decay of this rate etc. Helps with the experimentation.
 
     def train_run(self, num_eps, file_for_game='best_game.pkl', start_ep=0, saving=True, chart=False):
-        av1000, ma100, ma_history = [], deque(maxlen=100), []
+        av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
-        best_game, best_score = None, 0
         global_start = start = time.time()
         for i in range(start_ep + 1, start_ep + num_eps + 2):
 
@@ -211,8 +215,9 @@ class Q_agent:
             game = self.episode()
             ma100.append(game.score)
             av1000.append(game.score)
-            if game.score > best_score:
-                best_game, best_score = game, game.score
+            if game.score > self.top_score:
+                self.top_game, self.top_score = game, game.score
+
                 print(f'new best game at episode {i}!')
                 print(game)
                 if saving:
@@ -227,24 +232,25 @@ class Q_agent:
                 self.decay_alpha()
 
             ma = int(np.mean(ma100))
-            ma_history.append(ma)
             if i % 100 == 0:
                 print(f'{i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
             if i % 1000 == 0:
-                print('------')
+                average = np.mean(av1000)
+                self.train_history.append(average)
+                print('\n------')
                 print((time.time() - start) / 60, "min")
                 start = time.time()
                 print(f'episode = {i}')
-                print(f'average over last 1000 episodes = {np.mean(av1000)}')
+                print(f'average over last 1000 episodes = {average}')
                 av1000 = []
                 for j in range(7):
                     r = sum(reached[j:]) / 10
                     print(f'{1 << (j + 10)} reached in {r} %')
                 reached = [0] * 7
-                print(f'best score so far = {best_score}')
-                print(best_game)
+                print(f'best score so far = {self.top_score}')
+                print(self.top_game)
                 self._display_lr()
-                print('------')
+                print('------\n')
                 if saving:
                     self.save_agent()
                     print(f'agent saved in {self.file}')
@@ -253,7 +259,7 @@ class Q_agent:
             self.save_agent()
             print(f'agent saved in {self.file}')
         if chart:
-            self.chart_ma_100(ma_history)
+            self.chart_ma_100(self.train_history)
 
     @staticmethod
     def chart_ma_100(ma100):

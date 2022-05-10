@@ -147,12 +147,6 @@ class Show:
 
 if __name__ == "__main__":
 
-    a = Q_agent.load_agent('agent_4.pkl')
-    print(a.step, a.next_decay, a.alpha, a.low_alpha_limit, a.decay)
-    a.next_decay = 34800
-    a.save_agent()
-    sys.exit()
-
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
     # change the speed parameter in ms below if you like
 
@@ -165,14 +159,14 @@ if __name__ == "__main__":
     if option == 0:
         Show().play()
     elif option == 1:
-        game = Game.load_game("best_game.npy")
+        game = Game.load_game("best_game.pkl")
         Show().replay(game, speed=25)
     elif option == 2:
-        agent = Q_agent.load_agent("best_agent.npy")
+        agent = Q_agent.load_agent("agent_4.pkl")
         est = agent.evaluate
         results = Game.trial(estimator=est, num=100)
-        Show().replay(results[0], speed=200)
+        Show().replay(results[0], speed=100)
     else:
-        agent = Q_agent.load_agent("best_agent.npy")
+        agent = Q_agent.load_agent("agent_4.pkl")
         est = agent.evaluate
-        Show().watch(estimator=est, speed=20)
+        Show().watch(estimator=est, speed=200)
