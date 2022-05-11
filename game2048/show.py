@@ -1,6 +1,6 @@
 import pygame
 from pygame.locals import *
-from game2048.r_learning import *
+from .r_learning import *
 
 
 # I took the core of this game visualisation code from someone's github repo several weeks ago

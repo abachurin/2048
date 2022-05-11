@@ -1,8 +1,5 @@
 from game2048.show import *
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
-import random
+
 
 external_stylesheets = ['look.css']
 
@@ -40,4 +37,22 @@ def update_output_div(name):
 
 
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0', port=8050, debug=True)
+
+    option = int(input())
+    if option == 0:
+        Show().play()
+    elif option == 1:
+        game = Game.load_game("best_game.pkl")
+        Show().replay(game, speed=25)
+    elif option == 2:
+        agent = Q_agent.load_agent("agent_4.pkl")
+        est = agent.evaluate
+        results = Game.trial(estimator=est, num=100)
+        Show().replay(results[0], speed=100)
+    else:
+        agent = Q_agent.load_agent("agent_4.pkl")
+        est = agent.evaluate
+        Show().watch(estimator=est, speed=200)
+
+
+    # app.run_server(host='0.0.0.0', port=8050, debug=True)

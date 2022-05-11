@@ -1,4 +1,4 @@
-from game2048.game_logic import *
+from .game_logic import *
 
 
 def basic_reward(row, score, new_row, new_score):

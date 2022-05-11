@@ -1,13 +1,4 @@
-import numpy as np
-import time
-import sys
-from pprint import pprint
-import random
-import pickle
-import json
-import matplotlib.pyplot as plt
-from functools import partial
-from collections import deque
+from .start import *
 
 
 # basic evaluation methods - take best score, and move randomly
@@ -292,8 +283,4 @@ if __name__ == "__main__":
     est = random_eval
     g = Game()
     g.trial_run(est, verbose=False)
-    print(g)
-    print('___________')
-    g.replay()
 
-    #results = Game.trial(estimator=est, depth=0, width=4, ample=4, num=1)

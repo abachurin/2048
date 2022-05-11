@@ -9,12 +9,25 @@ import matplotlib.pyplot as plt
 from functools import partial
 from collections import deque
 import os
+import dash
+from dash import no_update as NUP
+import dash_auth
+from dash import dash_table, dcc, html
+import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
+from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
+from dash_extensions import Monitor
+from dash.dash_table.Format import Format, Scheme, Trim
+import plotly.express as px
+import flask
+import time
 import boto3
 from botocore.errorfactory import ClientError
 from botocore.client import Config
 
+working_directory = os.path.dirname(os.path.realpath(__file__))
 if os.environ.get('S3_URL', 'local') == 'local':
-    with open('config.json', 'r') as f:
+    with open(os.path.join(working_directory, 'config.json'), 'r') as f:
         s3_credentials = json.load(f)['s3_credentials']
     with open(s3_credentials, 'r') as f:
         df = json.load(f)
@@ -27,23 +40,61 @@ if os.environ.get('S3_URL', 'local') == 'local':
     s3_bucket_name = 'ab2048'
 else:
     pass
+s3_bucket = s3_engine.Bucket(s3_bucket_name)
 
-rows = [1, 1, 2, 2, 0]
-cols = [0, 1, 2, 3, 4]
-x = np.random.random((4, 10))
-y = x.tolist()
 
-now = time.time()
-for _ in range(100000):
-    rows = [0, 1, 2, 3]
-    cols = [7, 3, 2, 5]
-    s = sum([y[i][f] for i, f in enumerate(cols)])
-print(time.time() - now)
+def list_names_s3():
+    return [o.key for o in s3_bucket.objects.all()]
 
-now = time.time()
-for _ in range(100000):
-    rows = [0, 1, 2, 3]
-    cols = [7, 3, 2, 5]
-    s = sum([y[i][cols[i]] for i in range(4)])
-print(time.time() - now)
 
+def is_data_there(name):
+    return name in list_names_s3()
+
+
+def copy_inside_s3(src, dst):
+    s3_bucket.copy({'Bucket': s3_bucket_name, 'Key': src}, dst)
+
+
+def delete_s3(name):
+    if is_data_there(name):
+        s3_engine.Object(s3_bucket_name, name).delete()
+
+
+def load_s3(name):
+    if not is_data_there(name):
+        return 'no file'
+    ext = name.split('.')[1]
+    temp = f'temp.{ext}'
+    s3_bucket.download_file(name, temp)
+    if ext == 'json':
+        with open(temp, 'r', encoding='utf-8') as f:
+            result = json.load(f)
+    elif ext == 'txt':
+        with open(temp, 'r') as f:
+            result = f.readlines()
+    elif ext == 'pkl':
+        with open(temp, 'rb') as f:
+            result = pickle.load(f)
+    else:
+        result = '?'
+    os.remove(temp)
+    return result
+
+
+def save_s3(data, name):
+    ext = name.split('.')[1]
+    temp = f'temp.{ext}'
+    if ext == 'json':
+        with open(temp, 'w') as f:
+            json.dump(data, f)
+    elif ext == 'txt':
+        with open(temp, 'w') as f:
+            f.write(data)
+    elif ext == 'pkl':
+        with open(temp, 'wb') as f:
+            pickle.dump(data, f, -1)
+    else:
+        return 0
+    s3_bucket.upload_file(temp, name)
+    os.remove(temp)
+    return 1
