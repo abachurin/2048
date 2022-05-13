@@ -1,0 +1,6 @@
+@import './bootstrap.css';
+
+.header {
+    text-align: center;
+    color: var(--bs-pink);
+}
