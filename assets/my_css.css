@@ -2,5 +2,32 @@
 
 .header {
     text-align: center;
-    color: var(--bs-pink);
+    color: var(--bs-yellow);
+}
+
+.log-box {
+    padding: 10px;
+    height: 85vh;
+}
+
+.game-box {
+    padding: 10px;
+    height: 85vh;
+    min-width: 420px;
+}
+
+.cell {
+    position: absolute;
+    width: 98px;
+    height: 98px;
+    padding-top: 27px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 500;
+    color: black
+}
+
+.game-header {
+    text-align: center;
+    font-size: 20px;
 }

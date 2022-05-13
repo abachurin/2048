@@ -1,12 +1,36 @@
+import dash_table
 import pygame
 from pygame.locals import *
-from .r_learning import *
+from game2048.r_learning import *
 
+cell_size = 100
+x_position = {i: f'{i * cell_size}px' for i in range(4)}
+y_position = {i: f'{i * cell_size + 40}px' for i in range(4)}
+numbers = {i: str(1 << i) if i else '' for i in range(16)}
+colors = load_s3('config.json')['colors']
+colors = {int(v): colors[v] for v in colors}
+
+
+def display_table(game: Game, next_move=None):
+    row, score, odo = game.row, game.score, game.odometer
+    over = game.game_over(row)
+    if over:
+        header = f'Score = {score}, moves = {odo}, game over'
+    else:
+        header = f'Score = {score}, moves = {odo}, next move = {next_move}'
+    return dbc.Card([
+        html.H5(header, className='game-header'),
+        dbc.CardBody([html.Div(numbers[row[i, j]], className='cell',
+                               style={'left': x_position[i], 'top': y_position[j], 'background': colors[row[i, j]]})
+                      for j in range(4) for i in range(4)])
+        ], style={'width': '400px'}
+    )
 
 # I took the core of this game visualisation code from someone's github repo several weeks ago
 # when i started doing this project. I love the simplicity and psychedelic colors.
 # It's a shame i forgot where exactly i got it from. If you are the creator - write me
 # and i will give you the credit in the readme file.
+
 
 class Show:
 
@@ -121,6 +145,12 @@ class Show:
             i += 1
             pygame.display.update()
             pygame.time.wait(speed)
+        while True:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+            pygame.display.update()
 
     # watch an algorithm (estimator parameter) play on-line
 

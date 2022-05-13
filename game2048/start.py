@@ -16,7 +16,7 @@ from dash import dash_table, dcc, html
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
-from dash_extensions import Monitor
+from dash_extensions import Keyboard
 from dash.dash_table.Format import Format, Scheme, Trim
 import plotly.express as px
 import flask
@@ -99,3 +99,10 @@ def save_s3(data, name):
     s3_bucket.upload_file(temp, name)
     os.remove(temp)
     return 1
+
+
+'''
+with open(os.path.join(working_directory, 'config.json'), 'r') as f:
+    df = json.load(f)
+    save_s3(df, 'config.json')
+'''

@@ -88,8 +88,7 @@ class Q_agent:
         self.train_history = []
 
         # take default values from config file
-        with open('config.json', 'r') as f:
-            config = json.load(f)
+        config = load_s3('config.json')
         self.next_decay = self.decay_step = config['decay_step']
         self.low_alpha_limit = config['low_alpha_limit']
         self.alpha = alpha or config['alpha']

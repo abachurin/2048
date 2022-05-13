@@ -1,8 +1,27 @@
 {
-  "s3_credentials": "/Users/aleksej/AWS/s3.json",
-  "alpha": 0.25,
-  "decay": 0.7,
-  "decay_step": 10000,
-  "low_alpha_limit": 0.01,
-  "n": 4
+    "s3_credentials": "/Users/aleksej/AWS/s3.json",
+    "alpha": 0.25,
+    "decay": 0.7,
+    "decay_step": 10000,
+    "low_alpha_limit": 0.01,
+    "n": 4,
+    "cell_size": 100,
+    "colors": {
+        "0": "#f2f2f2",
+        "1": "#ff5c33",
+        "2": "#ff33cc",
+        "3": "#00ff00",
+        "4": "#cc00ff",
+        "5": "#00ff99",
+        "6": "#ff6666",
+        "7": "#ffff00",
+        "8": "#ff3300",
+        "9": "#666699",
+        "10": "#cccc00",
+        "11": "#cc0000",
+        "12": "#00ffff",
+        "13": "#5c0099",
+        "14": "#b37700",
+        "15": "#000066"
+    }
 }
