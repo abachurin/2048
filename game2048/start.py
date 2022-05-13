@@ -26,7 +26,8 @@ from botocore.errorfactory import ClientError
 from botocore.client import Config
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
-if os.environ.get('S3_URL', 'local') == 'local':
+LOCAL = os.environ.get('S3_URL', 'local')
+if LOCAL == 'local':
     with open(os.path.join(working_directory, 'config.json'), 'r') as f:
         s3_credentials = json.load(f)['s3_credentials']
     with open(s3_credentials, 'r') as f:
