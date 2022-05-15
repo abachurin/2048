@@ -28,10 +28,12 @@ from botocore.client import Config
 import base64
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
+with open(working_directory + '/config.json', 'r') as f:
+    CONF = json.load(f)
 LOCAL = os.environ.get('S3_URL', 'local')
+
 if LOCAL == 'local':
-    with open(os.path.join(working_directory, 'config.json'), 'r') as f:
-        s3_credentials = json.load(f)['s3_credentials']
+    s3_credentials = CONF['s3_credentials']
     with open(s3_credentials, 'r') as f:
         df = json.load(f)
     s3_engine = boto3.resource(
@@ -64,8 +66,8 @@ def delete_s3(name):
 
 
 def load_s3(name):
-    if not is_data_there(name):
-        return 'no file'
+    if not name or (not is_data_there(name)):
+        return
     ext = name.split('.')[1]
     temp = f'temp.{ext}'
     s3_bucket.download_file(name, temp)
@@ -79,7 +81,7 @@ def load_s3(name):
         with open(temp, 'rb') as f:
             result = pickle.load(f)
     else:
-        result = '?'
+        result = None
     os.remove(temp)
     return result
 
@@ -101,10 +103,3 @@ def save_s3(data, name):
     s3_bucket.upload_file(temp, name)
     os.remove(temp)
     return 1
-
-
-'''
-with open(os.path.join(working_directory, 'config.json'), 'r') as f:
-    df = json.load(f)
-    save_s3(df, 'config.json')
-'''

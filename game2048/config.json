@@ -1,10 +1,5 @@
 {
     "s3_credentials": "/Users/aleksej/AWS/s3.json",
-    "alpha": 0.25,
-    "decay": 0.7,
-    "decay_step": 10000,
-    "low_alpha_limit": 0.01,
-    "n": 4,
     "cell_size": 100,
     "colors": {
         "0": "#f2f2f2",

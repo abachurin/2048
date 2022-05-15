@@ -15,11 +15,11 @@ act_list = {
     'delete': 'Delete'
 }
 
-cell_size = 100
+cell_size = CONF['cell_size']
 x_position = {i: f'{i * cell_size}px' for i in range(4)}
 y_position = {i: f'{i * cell_size + 35}px' for i in range(4)}
 numbers = {i: str(1 << i) if i else '' for i in range(16)}
-colors = load_s3('config.json')['colors']
+colors = CONF['colors']
 colors = {int(v): colors[v] for v in colors}
 
 
@@ -42,7 +42,6 @@ def my_alert(text, info=False):
                      className='admin-notification')
 
 
-image_directory = os.path.dirname(os.path.realpath(__file__)) + '/image/'
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 
@@ -126,18 +125,20 @@ def act_process(*args):
 def admin_act(n, act, name):
     if n:
         if act == 'Delete':
-            delete_s3(name)
-            return my_alert(f'{name} deleted'), NUP
+            if name:
+                delete_s3(name)
+                return my_alert(f'{name} deleted'), NUP
+            else:
+                return my_alert(f'Choose file to delete!', info=True), NUP
         elif act == 'Download':
             if name:
-                s3_bucket.download_file(name, name)
-                to_send = dcc.send_file(name)
-                os.remove(name)
+                temp = name[2:]
+                s3_bucket.download_file(name, temp)
+                to_send = dcc.send_file(temp)
+                os.remove(temp)
                 return NUP, to_send
             else:
                 return my_alert(f'Choose file for download!', info=True), NUP
-        elif act == 'Upload':
-            return NUP, NUP
         raise PreventUpdate
     else:
         raise PreventUpdate
@@ -164,6 +165,7 @@ def upload_process(content, name, kind):
         prefix = 'c/' if kind == 'config file' else ('g/' if kind == 'game' else '/a')
         s3_bucket.upload_file(name, prefix + name)
         os.remove(name)
+        return my_alert(f'Uploaded {name} as new {kind}')
     else:
         raise PreventUpdate
 
