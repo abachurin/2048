@@ -7,12 +7,83 @@
 
 .log-box {
     padding: 10px;
-    height: 85vh;
+    height: 89vh;
+    min-width: 420px;
+}
+
+.mode-text {
+    position: absolute;
+    padding: 7px;
+    text-align: center;
+    color: black;
+    font-size: 18px;
+    height: 36px;
+    width: 130px;
+    top: 10px;
+    right: 10px;
+    background: var(--bs-yellow);
+    border-radius: 0.25rem;
+}
+
+.admin-page {
+    background: var(--bs-gray-700);
+    min-width: 420px;
+}
+
+.admin-page-body {
+    height: 200px;
+}
+
+.upload-file {
+	position: absolute;
+	width: 314px;
+	height: 140px;
+	top: 10px;
+	padding: 10px;
+	background: var(--bs-white);
+	border-radius: 0.25rem;
+}
+
+.choose-file {
+    position: absolute;
+    left: 131px;
+    top: 16px;
+    width: 200px;
+    height: 38px;
+    padding-left: 5px;
+    border-radius: 0.25rem;
+}
+
+.admin-go {
+    position: absolute;
+    left: 348px;
+    top: 16px;
+    text-transform: uppercase;
+    background: var(--bs-yellow);
+}
+
+.admin-notification {
+    top: 8px;
+    white-space: pre;
+    width: 320px;
+    height: 38px;
+    padding: 0.25rem 0.25rem
+}
+
+.choose-from-s3 {
+    position: absolute;
+    font-size: 16px;
+    padding: 7px;
+    height: 38px;
+    width: 140px;
+    top: 10px;
+    left: 120px;
+    border-radius: 0.25rem;
 }
 
 .game-box {
     padding: 10px;
-    height: 85vh;
+    height: 89vh;
     min-width: 420px;
 }
 
@@ -20,14 +91,55 @@
     position: absolute;
     width: 98px;
     height: 98px;
-    padding-top: 27px;
+    padding-top: 32px;
     text-align: center;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 500;
     color: black
 }
 
 .game-header {
+    padding: 5px;
     text-align: center;
-    font-size: 20px;
+    white-space: pre;
+    color: white;
+    background: var(--bs-blue);
+}
+
+.gauge {
+    position: absolute;
+    top: 470px;
+}
+
+.speed-header {
+    position: absolute;
+    top: 660px;
+}
+
+.slider {
+    position: absolute;
+    width: 420px;
+    top: 690px;
+}
+
+.button-line {
+    position: absolute;
+    width: 420px;
+    height: 38px;
+    top: 730px;
+}
+
+.one-button {
+    position: absolute;
+    width: 120px;
+    color: white;
+    background: var(--bs-blue);
+}
+
+.pause-button {
+    left: 60px;
+}
+
+.resume-button {
+    left: 240px;
 }

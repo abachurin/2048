@@ -13,6 +13,7 @@ import dash
 from dash import no_update as NUP
 import dash_auth
 from dash import dash_table, dcc, html
+import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
@@ -24,6 +25,7 @@ import time
 import boto3
 from botocore.errorfactory import ClientError
 from botocore.client import Config
+import base64
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
 LOCAL = os.environ.get('S3_URL', 'local')

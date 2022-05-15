@@ -259,21 +259,29 @@ class Game:
 
     # replay game in text mode, for debugging purposes
 
-    def replay(self):
+    def replay(self, verbose=True):
+        chain = {}
         state = self.starting_position
         replay_game = Game(row=state)
-        print('Starting position:')
-        print(replay_game)
+        if verbose:
+            print('Starting position:')
+            print(replay_game)
         for i in range(self.odometer):
             move = self.moves[i]
+            chain[i] = (replay_game.row.copy(), replay_game.score, move)
             new_tile, position = self.tiles[i]
-            print(i, new_tile, position)
+            if verbose:
+                print(i, new_tile, position)
             replay_game.make_move(move)
             replay_game.row[position] = new_tile
-            print(f'On {replay_game.odometer} we move = {Game.actions[move]}, '
-                  f'new tile = {new_tile} at position = {position}')
-            print(replay_game)
-        print('no more moves possible, final position')
+            if verbose:
+                print(f'On {replay_game.odometer} we move = {Game.actions[move]}, '
+                      f'new tile = {new_tile} at position = {position}')
+                print(replay_game)
+        if verbose:
+            print('no more moves possible, final position')
+        chain[self.odometer] = (self.row.copy(), self.score, -1)
+        return chain
 
 
 if __name__ == "__main__":
