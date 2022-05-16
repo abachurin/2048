@@ -3084,7 +3084,8 @@ textarea.form-control-lg {
 
 .btn:disabled, .btn.disabled,
 fieldset:disabled .btn {
-  pointer-events: none;
+  pointer-events: all;
+  cursor: not-allowed;
   opacity: 0.65;
 }
 

@@ -79,8 +79,8 @@ class Q_agent:
     def __init__(self, name='agent', config_file=None, storage='s3', console='local', weights_type='random',
                  reward='basic', decay_model='simple', n=4, alpha=0.25, decay=0.75,
                  decay_step=10000, low_alpha_limit=0.01):
-        self.name = ''.join(x for x in name if x.isalnum())
-        self.file = self.name + '.pkl'
+        self.name = name
+        self.file = name + '.pkl'
         self.game_file = 'best_of_' + self.file
         self.save_agent = self.save_agent_s3 if storage == 's3' else self.save_agent_local
         self.save_game = self.save_game_s3 if storage == 's3' else self.save_game_local
@@ -227,6 +227,7 @@ class Q_agent:
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         global_start = start = time.time()
+        self.print(f'{self.name} training start!')
         for i in range(self.step + 1, self.step + num_eps + 2):
 
             # check if it's time to decay learning rate
@@ -238,9 +239,8 @@ class Q_agent:
             av1000.append(game.score)
             if game.score > self.top_score:
                 self.top_game, self.top_score = game, game.score
-
                 self.print(f'new best game at episode {i}!')
-                print(game)
+                self.print(game.__str__())
                 if saving:
                     self.save_game(game)
                     self.print(f'game saved at {self.game_file}')
