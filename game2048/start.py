@@ -9,23 +9,12 @@ import matplotlib.pyplot as plt
 from functools import partial
 from collections import deque
 import os
-import dash
-from dash import no_update as NUP
-import dash_auth
-from dash import dash_table, dcc, html
-import dash_daq as daq
-import dash_bootstrap_components as dbc
-from dash.exceptions import PreventUpdate
-from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
-from dash_extensions import Keyboard
-from dash.dash_table.Format import Format, Scheme, Trim
-import plotly.express as px
-import flask
 import time
 import boto3
 from botocore.errorfactory import ClientError
 from botocore.client import Config
 import base64
+from multiprocessing import Process
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
 with open(working_directory + '/config.json', 'r') as f:
@@ -103,3 +92,29 @@ def save_s3(data, name):
     s3_bucket.upload_file(temp, name)
     os.remove(temp)
     return 1
+
+
+class Logger:
+
+    def __init__(self, file=None, start="Welcome! Let's do something interesting"):
+        self.file = file or os.path.join(working_directory, 'logs.txt')
+        self.start = start
+        self.clear()
+
+    def add(self, text):
+        if text:
+            with open(self.file, 'a') as f:
+                f.write('\n' + str(text))
+
+    def get(self):
+        with open(self.file, 'r') as f:
+            text = f.read()
+        return text
+
+    def clear(self, start=None):
+        start = start or self.start
+        with open(self.file, 'w') as f:
+            f.write(start)
+
+
+LOGS = Logger()

@@ -83,34 +83,37 @@
     position: absolute;
     left: 150px;
     width: calc(100% - 160px);
-    border-radius: 0.25rem;
+    border: 2px solid var(--bs-black);
+    border-radius: 0rem;
 }
 
 .input-text {
     position: absolute;
     width: 75px;
     background: var(--bs-gray-600);
+    border: 2px solid var(--bs-black);
     border-radius: 0rem;
 }
 
 .input-field {
     position: absolute;
+    padding-left: 10px;
     left: 75px;
     width: calc(100% - 75px);
     height: 36px;
+    border: 2px solid var(--bs-black);
     border-radius: 0rem;
 }
 
-.config-off-top {
+.second-line {
     position: absolute;
-    top: 36px;
+    top: 38px;
 }
 
 .go-to-params {
     position: absolute;
     top: 80px;
     width: 200px;
-    left: calc(50% - 100px);
     background: var(--bs-pink);
     border-radius: 0rem;
 }
@@ -200,6 +203,11 @@
     width: 120px;
 }
 
+.stop-agent {
+    right: 270px;
+    background: var(--bs-pink)
+}
+
 .logs-download {
     right: 10px;
 }
@@ -217,10 +225,10 @@
     overflow: auto;
     display: flex;
     flex-direction: column-reverse;
-    white-space: pre-line;
-    font-size: 16px;
+    white-space: pre-wrap;
+    font-size: 14px;
     line-height: 20px;
-    color: #e6e6e6;
+    color: #ffb366;
 }
 
 .params-page {
@@ -257,4 +265,60 @@
     width: 200px;
     left: 10px;
     background: var(--bs-pink);
+}
+
+.lf-params {
+    position: absolute;
+    top: 46px;
+    width: 100%;
+    height: 84px;
+    background: var(--bs-blue);
+}
+
+.lf-cell {
+    position: absolute;
+    top: 6px;
+    height: 36px;
+    width: calc((100% - 6px) / 3);
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid var(--bs-yellow);
+    border-radius: 0rem;
+}
+
+.lf-text {
+    top: 6px;
+}
+
+.lf-field {
+    top: 42px;
+}
+
+.lf-depth {
+    left: 6px;
+}
+.lf-width {
+    left: calc((100% - 12px) / 3 + 6px);
+}
+
+.lf-empty {
+    left: calc((100% - 12px) * 2 / 3 + 6px);
+}
+
+.launch-game {
+    position: absolute;
+    top: 140px;
+    width: 200px;
+    background: var(--bs-pink);
+    border-radius: 0rem;
+}
+
+.par-input-text {
+    width: var(--param-text-len);
+    border: 2px solid var(--bs-black);
+}
+
+.par-input-field {
+     width: calc(100% - var(--param-text-len));
+     border: 2px solid var(--bs-black);
 }

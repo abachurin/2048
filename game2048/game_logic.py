@@ -146,7 +146,7 @@ class Game:
         self.moves.append(direction)
         return change
 
-    def trial_run(self, estimator, limit_tile=0, step_limit=100000, depth=0, width=1, ample=6, verbose=False):
+    def trial_run(self, estimator, limit_tile=0, step_limit=100000, depth=0, width=1, since_empty=0, verbose=False):
         if verbose:
             print('Starting position:')
             print(self)
@@ -160,7 +160,7 @@ class Game:
             for direction in range(4):
                 new_row, new_score, change = self.pre_move(self.row, self.score, direction)
                 if change:
-                    value = self.look_forward(estimator, new_row, new_score, depth=depth, width=width, ample=ample)
+                    value = self.look_forward(estimator, new_row, new_score, depth=depth, width=width, ample=since_empty)
                     if value > best_value:
                         best_dir, best_value = direction, value
                         best_row, best_score = new_row, new_score
@@ -230,7 +230,7 @@ class Game:
         for i in range(num):
             now = time.time()
             game = Game() if game_init is None else game_init.copy()
-            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, ample=ample, verbose=verbose)
+            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=ample, verbose=verbose)
             print(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
                   f'time = {(time.time() - now):.2f}')
             results.append(game)

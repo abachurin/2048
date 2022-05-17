@@ -84,10 +84,10 @@ class Q_agent:
         self.game_file = 'best_of_' + self.file
         self.save_agent = self.save_agent_s3 if storage == 's3' else self.save_agent_local
         self.save_game = self.save_game_s3 if storage == 's3' else self.save_game_local
-        self.print = self.log if console == 'web' else print
+        self.print = LOGS.add if console == 'web' else print
 
         if config_file:
-            config = load_s3('c/' + config_file) or {}
+            config = load_s3(config_file) or {}
         else:
             config = {}
         self.weights_type = config.get('weights', weights_type)
@@ -120,9 +120,6 @@ class Q_agent:
             self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
         else:
             self.weights = [[0] * self.size_feat] * self.num_feat
-
-    def log(self, text):
-        self.logs += '\n' + text
 
     def save_agent_local(self):
         with open(self.file, 'wb') as f:
@@ -227,7 +224,7 @@ class Q_agent:
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         global_start = start = time.time()
-        self.print(f'{self.name} training start!')
+        self.print(f'Agent {self.name} training started')
         for i in range(self.step + 1, self.step + num_eps + 2):
 
             # check if it's time to decay learning rate
@@ -239,8 +236,7 @@ class Q_agent:
             av1000.append(game.score)
             if game.score > self.top_score:
                 self.top_game, self.top_score = game, game.score
-                self.print(f'new best game at episode {i}!')
-                self.print(game.__str__())
+                self.print(f'\nnew best game at episode {i}!\n{game.__str__()}\n')
                 if saving:
                     self.save_game(game)
                     self.print(f'game saved at {self.game_file}')
@@ -254,12 +250,13 @@ class Q_agent:
 
             ma = int(np.mean(ma100))
             if i % 100 == 0:
-                self.print(f'{i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
+                self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
+                self.save_agent()
             if i % 1000 == 0:
                 average = np.mean(av1000)
                 self.train_history.append(average)
                 self.print('\n------')
-                self.print((time.time() - start) / 60, "min")
+                self.print(f'{(time.time() - start) / 60} min')
                 start = time.time()
                 self.print(f'episode = {i}')
                 self.print(f'average over last 1000 episodes = {average}')
@@ -293,6 +290,8 @@ if __name__ == "__main__":
 
     # Run the below line to see the magic. How it starts with random moves and immediately
     # starts climbing the ladder
-
+    a = load_s3('a/Loki.pkl')
+    print(a.alpha, a.decay, a.step)
+    sys.exit()
     a_4 = Q_agent(name='agent')
     a_4.train_run(chart=True)

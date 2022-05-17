@@ -1,4 +1,16 @@
-from game2048.show import *
+import dash
+from dash import no_update as NUP
+import dash_auth
+from dash import dash_table, dcc, html
+import dash_daq as daq
+import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
+from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
+from dash_extensions import Keyboard
+from dash.dash_table.Format import Format, Scheme, Trim
+import plotly.express as px
+
+from game2048.r_learning import *
 
 # Some necessary variables and useful functions
 mode_list = {
@@ -84,10 +96,9 @@ app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2
 app.layout = dbc.Container([
     dcc.Download(id="download_file"),
     dcc.Store(id='chain', storage_type='session'),
-    dcc.Store(id='agent_now', storage_type='session'),
-    dcc.Store(id='logs_storage', storage_type='session', data='Welcome! Let\'s do something interesting!\n'),
-    dcc.Store(id='logs_source', storage_type='session', data='self'),
+    dcc.Store(id='current_process', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
+    dcc.Interval(id='logs_interval', interval=2000, n_intervals=0),
     dbc.Modal([
         dbc.ModalHeader('File Management'),
         dbc.ModalBody([
@@ -125,20 +136,33 @@ app.layout = dbc.Container([
             ),
             dbc.InputGroup([
                 dbc.InputGroupText('Agent:', className='input-text'),
-                dbc.Select(id='choose_stored_agent', className='input-field')
+                dbc.Select(id='choose_stored_agent', className='input-field'),
+                html.Div([
+                    dbc.InputGroupText('depth:', className='lf-cell lf-text lf-depth'),
+                    dbc.Input(id='choose_depth', type='number', min=0, max=4, value=0,
+                              className='lf-cell lf-field lf-depth'),
+                    dbc.InputGroupText('width:', className='lf-cell lf-text lf-width'),
+                    dbc.Input(id='choose_width', type='number', min=1, max=4, value=1,
+                              className='lf-cell lf-field lf-width'),
+                    dbc.InputGroupText('since_empty:', className='lf-cell lf-text lf-empty'),
+                    dbc.Input(id='choose_since_empty', type='number', min=0, max=8, value=6,
+                              className='lf-cell lf-field lf-empty'),
+                ], className='lf-params'),
+                dbc.Button('LAUNCH!', id='replay_agent_button', disabled=True, className='launch-game')
                 ], id='input_group_agent', style={'display': 'none'}, className='my-input-group',
             ),
             dbc.InputGroup([
                 dbc.InputGroupText('Agent:', className='input-text'),
                 dbc.Select(id='choose_train_agent', className='input-field'),
-                dbc.InputGroupText('Config:', className='input-text config-off-top'),
-                dbc.Select(id='choose_config', disabled=True, className='input-field config-off-top'),
+                dbc.InputGroupText('Config:', className='input-text second-line'),
+                dbc.Select(id='choose_config', disabled=True, className='input-field second-line'),
                 dbc.Button('Confirm parameters', id='go_to_params', disabled=True, className='go-to-params'),
                 ], id='input_group_train', style={'display': 'none'}, className='my-input-group',
             ),
             html.Div([
-                    dcc.Interval(id='logs_interval', interval=250, n_intervals=0),
                     html.H6('Logs', className='logs-header card-header'),
+                    dbc.Button('Stop', id='stop_agent', n_clicks=0, className='logs-button stop-agent',
+                               style={'display': 'none'}),
                     dbc.Button('Download', id='download_logs', n_clicks=0, className='logs-button logs-download'),
                     dbc.Button('Clear', id='clear_logs', n_clicks=0, className='logs-button logs-clear'),
                     html.Div(id='logs_display', className='logs-display')
@@ -326,23 +350,29 @@ def find_agents(style):
 
 
 @app.callback(
-    Output('agent_now', 'data'), Output('update_interval', 'disabled'),
-    Input('choose_stored_agent', 'value'),
-    State('agent_now', 'data'), State('chain', 'data')
+    Output('replay_agent_button', 'disabled'),
+    Input('choose_stored_agent', 'value')
 )
-def agent_playing(name, previous_agent, previous_game):
+def enable_agent_play_button(name):
     if name:
-        if previous_agent:
-            del globals()[previous_agent]
-        if previous_game:
-            del globals()[previous_game]
-        agent_name = f'agent{random.randrange(100000)}'
+        return False
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('chain', 'data'), Output('update_interval', 'disabled'),
+    Input('replay_agent_button', 'n_clicks'),
+    State('chain', 'data'), State('choose_stored_agent', 'value'),
+    State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value')
+)
+def start_agent_play(n, previous, agent_file, depth, width, empty):
+    if n:
+        if previous:
+            del globals()[previous]
+        agent = load_s3(agent_file)
+        evaluator = agent.evaluate
         chain = f'game{random.randrange(100000)}'
-        agent = load_s3(name)
-        globals()[chain] = {
-            'games': game.replay(verbose=False),
-            'step': 0
-        }
         return chain, False
     else:
         raise PreventUpdate
@@ -406,52 +436,72 @@ def fill_params(is_open, agent_name, config_name):
         if agent_name != 'New agent':
             agent = load_s3(agent_name)
             dis = [params_dict[e]['disable'] for e in params_list]
-            vals = [getattr(agent, e) for e in params_list]
+            ui_params = [getattr(agent, e) for e in params_list]
         elif config_name != 'New config':
             config = load_s3(config_name)
             dis = [False for e in params_list]
-            vals = [config.get(e, params_dict[e]['value']) for e in params_list]
+            ui_params = [config.get(e, params_dict[e]['value']) for e in params_list]
         else:
             dis = [False for e in params_list]
-            vals = [params_dict[e]['value'] for e in params_list]
-        return dis + vals
+            ui_params = [params_dict[e]['value'] for e in params_list]
+        return dis + ui_params
     else:
         raise PreventUpdate
 
 
 @app.callback(
-    Output('agent_now', 'data'), Output('log_source', 'data'), Output('params_notification', 'children'),
+    Output('params_notification', 'children'), Output('stop_agent', 'style'), Output('current_process', 'data'),
     Input('start_training', 'n_clicks'),
     [State(f'par_{e}', 'value') for e in params_list] +
-    [State('choose_train_agent', 'value'), State('agent_now', 'data')]
+    [State('choose_train_agent', 'value'), State('current_process', 'data')]
 )
 def start_training(*args):
     if args[0]:
-        new_name, new_agent_file, previous_agent_name = args[0], args[-2], args[-1]
-        if previous_agent_name:
-            del globals()[previous_agent_name]
-        agent_name = f'agent_{random.randrange(100000)}'
+        message = NUP
+        new_name, new_agent_file, current_process = args[1], args[-2], args[-1]
+        ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
+        if current_process:
+            globals()[current_process].terminate()
+            globals()[current_process].join()
         if new_name == 'generate random':
-            new_name = agent_name
+            new_name = f'agent_{random.randrange(100000)}'
         else:
             new_name = ''.join(x for x in new_name if x.isalnum())
         if new_agent_file == 'New agent':
-            new_config = {e: args[i] for i, e in enumerate(params_list[1:])}
-            new_config_file = f'c/config_{new_name}'
-            save_s3(new_config, new_config_file)
-            globals()[agent_name] = Q_agent(name=new_name, config_file=new_config_file, storage='s3', console='web')
+            new_config_file = f'c/config_{new_name}.json'
+            save_s3(ui_params, new_config_file)
+            message = my_alert(f'new config file {new_config_file[2:]} saved')
+            current = Q_agent(name=new_name, config_file=new_config_file, storage='s3', console='web')
         else:
             current = load_s3(new_agent_file)
             if current.name != new_name:
                 current.name = new_name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
-            for i, e in enumerate(params_list[1:]):
-                setattr(current, e, args[i])
-            current.save_agent()
-            globals()[agent_name] = current
+            for e in ui_params:
+                setattr(current, e, ui_params[e])
+        current.logs = ''
+        current.save_agent()
+        proc = f'p_{random.randrange(100000)}'
+        LOGS.clear()
+        globals()[proc] = Process(target=current.train_run, daemon=True)
+        globals()[proc].start()
+        return message, {'display': 'block'}, proc
+    else:
+        raise PreventUpdate
 
-        return agent_name
+
+@app.callback(
+    Output('current_process', 'data'), Output('stop_agent', 'style'),
+    Input('stop_agent', 'n_clicks'),
+    State('current_process', 'data'),
+)
+def stop_agent(n, current_process):
+    if n and current_process:
+        globals()[current_process].terminate()
+        globals()[current_process].join()
+        LOGS.add('Training terminated')
+        return None, {'display': 'none'}
     else:
         raise PreventUpdate
 
@@ -459,12 +509,11 @@ def start_training(*args):
 # Log window callbacks
 @app.callback(
     Output('logs_display', 'children'),
-    Input('logs_interval', 'n_intervals'),
-    State('logs_storage', 'data')
+    Input('logs_interval', 'n_intervals')
 )
-def update_logs(n, logs):
+def update_logs(n):
     if n:
-        return logs
+        return LOGS.get()
     else:
         raise PreventUpdate
 

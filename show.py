@@ -1,3 +1,6 @@
+import pygame
+from pygame.locals import *
+
 from game2048.r_learning import *
 
 
@@ -151,9 +154,6 @@ class Show:
 
 
 if __name__ == "__main__":
-
-    import pygame
-    from pygame.locals import *
 
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
     # change the speed parameter in ms below if you like
