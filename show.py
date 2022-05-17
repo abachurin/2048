@@ -153,28 +153,60 @@ class Show:
         pass
 
 
+def input_name(what):
+    print(f'List of available {what}s:')
+    all_items = {i: v for i, v in enumerate(list_names_s3()) if v[:2] == f'{what[0]}/'}
+    pprint(all_items)
+    print(f'Enter index of {what}:')
+    while True:
+        idx = input()
+        try:
+            idx = int(idx)
+            if idx in all_items:
+                return load_s3(all_items[idx])
+        except Exception:
+            continue
+
+
+def input_speed():
+    print('Enter speed in 10-2000 range (spacebar = 50):')
+    while True:
+        speed = input()
+        try:
+            speed = int(speed)
+            if speed == ' ':
+                return 50
+            elif 10 <= speed <= 2000:
+                return speed
+        except Exception:
+            continue
+
+
 if __name__ == "__main__":
 
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
     # change the speed parameter in ms below if you like
 
     print('option 0 = play yourself. Not sure why anybody would want it on a PC, but there os an option :)')
-    print('option 1 = replay the best game in the best_game.npy file')
-    print('option 2 = load the trained agent from best_agent.npy file. Play 100 games, replay the best')
-    print('any other input - load the trained agent from best_agent.npy file and see it play on-line')
+    print('option 1 = replay a game from storage')
+    print('option 2 = load a trained agent from storage. Play 100 games, replay the best')
+    print('any other input - load a trained agent from storage and see it play')
 
-    option = int(input())
-    if option == 0:
+    option = input()
+    if option == '0':
         Show().play()
-    elif option == 1:
-        game = Game.load_game("best_game.pkl")
-        Show().replay(game, speed=25)
-    elif option == 2:
-        agent = Q_agent.load_agent("agent_4.pkl")
-        est = agent.evaluate
-        results = Game.trial(estimator=est, num=100)
-        Show().replay(results[0], speed=100)
+
+    elif option == '1':
+        game = input_name('game')
+        speed = input_speed()
+        Show().replay(game, speed=speed)
+
     else:
-        agent = Q_agent.load_agent("agent_4.pkl")
-        est = agent.evaluate
-        Show().watch(estimator=est, speed=200)
+        est = input_name('agent').evaluate
+        speed = input_speed()
+
+        if option == '2':
+            results = Game.trial(estimator=est, num=100)
+            Show().replay(results[0], speed=speed)
+        else:
+            Show().watch(estimator=est, speed=speed)
