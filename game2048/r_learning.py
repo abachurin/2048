@@ -1,4 +1,4 @@
-from game2048.game_logic import *
+from .game_logic import *
 
 
 def basic_reward(row, score, new_row, new_score):
@@ -100,6 +100,7 @@ class Q_agent:
         self.low_alpha_limit = config.get('low_alpha_limit', low_alpha_limit)
 
         self.R = basic_reward if reward == 'basic' else log_reward
+        self.decay_model = decay_model
         self._upd = self._upd_simple if decay_model == 'simple' else self._upd_scaled
         self.logs = ''
         self.step = 0
@@ -193,6 +194,7 @@ class Q_agent:
             game.moves.append(action)
             state, old_label = game.row.copy(), best_value
             game.new_tile()
+        game.moves.append(-1)
         dw = - old_label / self.num_feat
         self.update(state, dw)
 
@@ -200,9 +202,12 @@ class Q_agent:
         return game
 
     def _display_lr(self):
-        self.print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
-        self.print({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
-        self.print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
+        if self.decay_model == 'scaled':
+            self.print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
+            self.print({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
+            self.print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
+        elif self.decay_model == 'simple':
+            self.print(f'episode = {self.step + 1}, current learning rate = {self.alpha}:')
 
     def decay_alpha(self):
         for i in range(16):
@@ -224,7 +229,7 @@ class Q_agent:
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         global_start = start = time.time()
-        self.print(f'Agent {self.name} training started')
+        self.print(f'Agent {self.name} training session started')
         for i in range(self.step + 1, self.step + num_eps + 2):
 
             # check if it's time to decay learning rate
@@ -248,13 +253,13 @@ class Q_agent:
                 self.top_tile = max_tile
                 self.decay_alpha()
 
-            ma = int(np.mean(ma100))
             if i % 100 == 0:
+                ma = int(np.mean(ma100))
+                self.train_history.append(ma)
                 self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
                 self.save_agent()
             if i % 1000 == 0:
                 average = np.mean(av1000)
-                self.train_history.append(average)
                 self.print('\n------')
                 self.print(f'{(time.time() - start) / 60} min')
                 start = time.time()

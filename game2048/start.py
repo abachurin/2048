@@ -15,6 +15,7 @@ from botocore.errorfactory import ClientError
 from botocore.client import Config
 import base64
 from multiprocessing import Process
+from threading import Thread
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
 with open(working_directory + '/config.json', 'r') as f:
@@ -96,10 +97,10 @@ def save_s3(data, name):
 
 class Logger:
 
-    def __init__(self, file=None, start="Welcome! Let's do something interesting"):
-        self.file = file or os.path.join(working_directory, 'logs.txt')
+    def __init__(self, file=None, start="Welcome! Let's do something interesting. Choose MODE of action!"):
+        self.download_file = file or 'logs.txt'
+        self.file = os.path.join(working_directory, self.download_file)
         self.start = start
-        self.clear()
 
     def add(self, text):
         if text:

@@ -57,6 +57,7 @@ class Game:
         self.odometer = 0
         self.moves = []
         self.tiles = []
+        self.history = {}
         if row is None:
             self.row = np.zeros((4, 4), dtype=np.int32)
             self.new_tile()
@@ -160,7 +161,8 @@ class Game:
             for direction in range(4):
                 new_row, new_score, change = self.pre_move(self.row, self.score, direction)
                 if change:
-                    value = self.look_forward(estimator, new_row, new_score, depth=depth, width=width, ample=since_empty)
+                    value = self.look_forward(estimator, new_row, new_score,
+                                              depth=depth, width=width, ample=since_empty)
                     if value > best_value:
                         best_dir, best_value = direction, value
                         best_row, best_score = new_row, new_score
@@ -169,8 +171,35 @@ class Game:
             self.row, self.score = best_row, best_score
             self.new_tile()
             if verbose:
-                print(f'On {self.odometer} we move {Game.actions[best_dir]}')
+                print(f'On {self.odometer} we moved {Game.actions[best_dir]}')
                 print(self)
+
+    def trial_run_for_thread(self, estimator, depth=0, width=1, since_empty=0, stopper=True):
+        while True:
+            if stopper not in globals():
+                return
+            if self.game_over(self.row):
+                self.history[self.odometer] = (self.row.copy(), self.score, -1)
+                self.moves.append(-1)
+                return
+            best_dir, best_value = 0, - np.inf
+            best_row, best_score = None, None
+            for direction in range(4):
+                new_row, new_score, change = self.pre_move(self.row, self.score, direction)
+                if change:
+                    value = self.look_forward(estimator, new_row, new_score,
+                                              depth=depth, width=width, ample=since_empty)
+                    if value > best_value:
+                        best_dir, best_value = direction, value
+                        best_row, best_score = new_row, new_score
+            self.history[self.odometer] = (self.row.copy(), self.score, best_dir)
+            self.moves.append(best_dir)
+            self.row, self.score = best_row, best_score
+            self.odometer += 1
+            self.new_tile()
+
+    def thread_trial(self, *args, **kwargs):
+        Thread(target=self.trial_run_for_thread, args=args, kwargs=kwargs).start()
 
     def generate_run(self, estimator, limit_tile=0, depth=0, width=1, ample=16):
         while True:
@@ -188,7 +217,6 @@ class Game:
                         best_dir, best_value = direction, value
                         best_row, best_score = new_row, new_score
             yield self, best_dir
-            self.moves.append(best_dir)
             self.odometer += 1
             self.row, self.score = best_row, best_score
             self.new_tile()
@@ -224,15 +252,18 @@ class Game:
         return average
 
     @staticmethod
-    def trial(estimator, limit_tile=0, num=20, game_init=None, depth=0, width=1, ample=6, verbose=False):
+    def trial(estimator, limit_tile=0, num=20, game_init=None, depth=0, width=1, since_empty=6,
+              storage='s3', console='local', game_file=None, verbose=False):
+        display = print if console == 'local' else LOGS.add
         start = time.time()
         results = []
         for i in range(num):
             now = time.time()
             game = Game() if game_init is None else game_init.copy()
-            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=ample, verbose=verbose)
-            print(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
-                  f'time = {(time.time() - now):.2f}')
+            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=since_empty,
+                           verbose=verbose)
+            display(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
+                    f'time = {(time.time() - now):.2f}')
             results.append(game)
         average = np.average([v.score for v in results])
         figures = [(1 << np.max(v.row)) for v in results]
@@ -242,19 +273,23 @@ class Game:
         def share(limit):
             return len([0 for v in figures if v >= limit]) / len(figures) * 100
 
-        print('\nBest games:\n')
+        message = '\nBest games:\n'
         for v in results[:3]:
-            print(v, '\n')
+            message += v.__str__() + '\n' + '\n'
         elapsed = time.time() - start
-        print(f'average score of {num} runs = {average}')
-        print(f'8192 reached in {share(8192)}%')
-        print(f'4096 reached in {share(4096)}%')
-        print(f'2048 reached in {share(2048)}%')
-        print(f'1024 reached in {share(1024)}%')
-        print(f'total time = {elapsed}')
-        print(f'average time per move = {elapsed / total_odo * 1000} ms')
-        print(f'total number of shuffles = {Game.counter}')
-        print(f'time per shuffle = {elapsed / Game.counter * 1000} ms')
+        message += f'average score of {num} runs = {average}\n' + f'8192 reached in {share(8192)}%\n' + \
+                   f'4096 reached in {share(4096)}%\n' + f'2048 reached in {share(2048)}%\n' + \
+                   f'1024 reached in {share(1024)}%\n' + f'total time = {elapsed}\n' + \
+                   f'average time per move = {elapsed / total_odo * 1000} ms\n' + \
+                   f'total number of shuffles = {Game.counter}\n' + \
+                   f'time per shuffle = {elapsed / Game.counter * 1000} ms'
+        display(message)
+        if game_file:
+            if storage == 's3':
+                save_s3(results[0], game_file)
+            else:
+                results[0].save_game(file=game_file)
+            display(f'Best game saved at {game_file}')
         return results
 
     # replay game in text mode, for debugging purposes

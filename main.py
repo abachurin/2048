@@ -1,16 +1,16 @@
 import dash
 from dash import no_update as NUP
-import dash_auth
-from dash import dash_table, dcc, html
+from dash import dcc, html
+from dash.dependencies import ClientsideFunction
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
-from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
+from dash_extensions.enrich import DashProxy, MultiplexerTransform, NoOutputTransform, Output, Input, State
 from dash_extensions import Keyboard
-from dash.dash_table.Format import Format, Scheme, Trim
 import plotly.express as px
 
 from game2048.r_learning import *
+from game2048 import game_logic
 
 # Some necessary variables and useful functions
 mode_list = {
@@ -28,7 +28,7 @@ act_list = {
 }
 params_list = ['name', 'weights_type', 'reward', 'decay_model', 'n', 'alpha', 'decay', 'decay_step', 'low_alpha_limit']
 params_dict = {
-    'name': {'element': 'input', 'type': 'text', 'value': 'generate random', 'disable': False},
+    'name': {'element': 'input', 'type': 'text', 'value': 'test_agent', 'disable': False},
     'weights_type': {'element': 'select', 'value': 'random', 'options': ['random', 'zero'], 'disable': True},
     'reward': {'element': 'select', 'value': 'basic', 'options': ['basic', 'log'], 'disable': True},
     'decay_model': {'element': 'select', 'value': 'simple', 'options': ['simple', 'scaled'], 'disable': True},
@@ -38,6 +38,12 @@ params_dict = {
     'decay_step': {'element': 'input', 'type': 'number', 'value': 10000, 'step': 5000, 'disable': False},
     'low_alpha_limit': {'element': 'input', 'type': 'number', 'value': 0.01, 'step': 0.0025, 'disable': False}
 }
+keyboard_dict = {
+    'Left': 0,
+    'Up': 1,
+    'Right': 2,
+    'Down': 3
+}
 cell_size = CONF['cell_size']
 x_position = {i: f'{i * cell_size}px' for i in range(4)}
 y_position = {i: f'{i * cell_size + 35}px' for i in range(4)}
@@ -46,11 +52,12 @@ colors = CONF['colors']
 colors = {int(v): colors[v] for v in colors}
 
 
-def display_table(row, score, odo, next_move):
+def display_table(row, score, odo, next_move, self_play=False):
+    header = f'Score = {score}    Moves = {odo}    '
     if next_move == -1:
-        header = f'Score = {score}    Moves = {odo}    Game over!'
-    else:
-        header = f'Score = {score}    Moves = {odo}    Next move = {Game.actions[next_move]}'
+        header += 'Game over!'
+    elif not self_play:
+        header += f'Next move = {Game.actions[next_move]}'
     return dbc.Card([
         html.H6(header, className='game-header'),
         dbc.CardBody([html.Div(numbers[row[j, i]], className='cell',
@@ -65,7 +72,7 @@ def opt_list(l):
 
 
 def my_alert(text, info=False):
-    return dbc.Alert(f' {text}', color='info' if info else 'success', dismissable=True, duration=5000,
+    return dbc.Alert(f' {text}', color='info' if info else 'success', dismissable=True, duration=10000,
                      className='admin-notification')
 
 
@@ -89,16 +96,33 @@ def params_line(e):
                        className='par-select-field no-border')], className='no-border')
 
 
+def kill_process(proc_name):
+    if proc_name and proc_name in globals():
+        proc = globals()[proc_name]
+        proc.terminate()
+        proc.join()
+        del proc
+
+
+def kill_chain(chain_name):
+    if chain_name and chain_name in globals():
+        del globals()[chain_name]
+        if chain_name in game_logic.__dict__:
+            del game_logic.__dict__[chain_name]
+
+
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 
 app.layout = dbc.Container([
-    dcc.Download(id="download_file"),
+    dcc.Download(id='download_file'),
+    Keyboard(id='keyboard'),
     dcc.Store(id='chain', storage_type='session'),
     dcc.Store(id='current_process', storage_type='session'),
+    dcc.Store(id='agent_for_chart', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
-    dcc.Interval(id='logs_interval', interval=2000, n_intervals=0),
+    dcc.Interval(id='logs_interval', interval=1000, n_intervals=0),
     dbc.Modal([
         dbc.ModalHeader('File Management'),
         dbc.ModalBody([
@@ -115,6 +139,7 @@ app.layout = dbc.Container([
         ])
     ], id='admin_page', size='lg', centered=True, contentClassName='admin-page'),
     dbc.Modal([
+        dcc.Loading(html.Div(id='loading'), type='cube', color='#77b300', parent_className='loader'),
         dbc.ModalHeader('Enter/adjust/confirm parameters for an Agent'),
         dbc.ModalBody([params_line(e) for e in params_list], className='params-page-body'),
         dbc.ModalFooter([
@@ -123,15 +148,22 @@ app.layout = dbc.Container([
             dbc.Button('CLOSE', id='close_params', n_clicks=0)
         ])
     ], id='params_page', size='lg', centered=True, contentClassName='params-page'),
-    dbc.Row(html.H3('Reinforcement Learning 2048 Agent', className='header card-header')),
+    dbc.Modal([
+        dbc.ModalHeader(id='chart_header'),
+        dbc.ModalBody(id='chart'),
+        dbc.ModalFooter(dbc.Button('CLOSE', id='close_chart', n_clicks=0))
+    ], id='chart_page', size='xl', centered=True, contentClassName='chart-page'),
+    dbc.Row(html.H3('Reinforcement Learning 2048 Agent, \u00A9abachurin', className='card-header my-header')),
     dbc.Row([
         dbc.Col(dbc.Card([
-            dbc.DropdownMenu(id='choose_option', label='Mode:', className='mode-choose',
-                             children=[dbc.DropdownMenuItem(mode_list[v][0], id=v, n_clicks=0) for v in mode_list]),
             html.H6(id='mode_text', className='mode-text'),
+            dbc.DropdownMenu(id='choose_option', label='MODE ?', color='success', className='mode-choose',
+                             children=[dbc.DropdownMenuItem(mode_list[v][0], id=v, n_clicks=0) for v in mode_list]),
+            dbc.Button('Train History Chart', id='chart_button', disabled=True, className='chart-button'),
             dbc.InputGroup([
                 dbc.InputGroupText('Game:', className='input-text'),
-                dbc.Select(id='choose_for_replay', className='input-field')
+                dbc.Select(id='choose_for_replay', className='input-field'),
+                dbc.Button('REPLAY', id='replay_game_button', disabled=True, className='replay-game')
                 ], id='input_group_game', style={'display': 'none'}, className='my-input-group',
             ),
             dbc.InputGroup([
@@ -144,10 +176,14 @@ app.layout = dbc.Container([
                     dbc.InputGroupText('width:', className='lf-cell lf-text lf-width'),
                     dbc.Input(id='choose_width', type='number', min=1, max=4, value=1,
                               className='lf-cell lf-field lf-width'),
-                    dbc.InputGroupText('since_empty:', className='lf-cell lf-text lf-empty'),
+                    dbc.InputGroupText('empty:', className='lf-cell lf-text lf-empty'),
                     dbc.Input(id='choose_since_empty', type='number', min=0, max=8, value=6,
                               className='lf-cell lf-field lf-empty'),
                 ], className='lf-params'),
+                html.Div([
+                    dbc.InputGroupText('N:', className='num-eps-text'),
+                    dbc.Input(id='choose_num_eps', type='number', min=10, value=100, step=10, className='num-eps-field')
+                    ], id='num_eps', style={'display': 'none'}, className='num-eps'),
                 dbc.Button('LAUNCH!', id='replay_agent_button', disabled=True, className='launch-game')
                 ], id='input_group_agent', style={'display': 'none'}, className='my-input-group',
             ),
@@ -168,21 +204,35 @@ app.layout = dbc.Container([
                     html.Div(id='logs_display', className='logs-display')
                 ], className='logs-window'),
             ], className='log-box'),
-
         ),
         dbc.Col([
             dbc.Card([
+                dbc.Toast('Use buttons below or keyboard!\n'
+                          'When two equal tiles collide, they combine to give you one '
+                          'greater tile that displays their sum. The more you do this, obviously, the higher the '
+                          'tiles get and the more crowded the board becomes. Your objective is to reach highest '
+                          'possible score before the board fills up', header='Game instructions  ',
+                          headerClassName='inst-header', id='play_instructions', dismissable=True, is_open=False),
                 dbc.CardBody(id='game_card'),
-                daq.Gauge(id='gauge', className='gauge',
-                          color={"gradient": True, "ranges": {"green": [0, 6], "yellow": [6, 8], "red": [8, 10]}}),
-                html.H6('Speed', className='speed-header'),
-                dcc.Slider(id='gauge-slider', min=0, max=10, value=6, marks={v: str(v) for v in range(11)},
-                           step=0.1, className='slider'),
                 html.Div([
-                    dbc.Button('PAUSE', id='pause_game', n_clicks=0, className='one-button pause-button'),
-                    dbc.Button('RESUME', id='resume_game', n_clicks=0, className='one-button resume-button'),
-                ], className='button-line'),
-            ], className='game-box align-items-center'),
+                    daq.Gauge(id='gauge', className='gauge',
+                              color={"gradient": True, "ranges": {"blue": [0, 6], "yellow": [6, 8], "red": [8, 10]}}),
+                    html.H6('DELAY', className='speed-header'),
+                    dcc.Slider(id='gauge-slider', min=0, max=10, value=3, marks={v: str(v) for v in range(11)},
+                               step=0.1, className='slider'),
+                    html.Div([
+                        dbc.Button('PAUSE', id='pause_game', n_clicks=0, className='one-button pause-button'),
+                        dbc.Button('RESUME', id='resume_game', n_clicks=0, className='one-button resume-button'),
+                    ], className='button-line')
+                ], id='gauge_group', className='gauge-group'),
+                html.Div([
+                    dbc.Button('\u2190', id='move_0', className='move-button move-left'),
+                    dbc.Button('\u2191', id='move_1', className='move-button move-up'),
+                    dbc.Button('\u2192', id='move_2', className='move-button move-right'),
+                    dbc.Button('\u2193', id='move_3', className='move-button move-down'),
+                    dbc.Button('RESTART', id='restart_play', className='restart-play'),
+                ], id='play-yourself-group', className='gauge-group', style={'display': 'none'}),
+            ], className='log-box align-items-center'),
         ])
     ])
 ])
@@ -270,7 +320,7 @@ def upload_process(content, name, kind):
 # Control Panel callbacks
 @app.callback(
     Output('mode_text', 'children'), Output('input_group_agent', 'style'), Output('input_group_game', 'style'),
-    Output('input_group_train', 'style'),
+    Output('input_group_train', 'style'), Output('num_eps', 'style'),
     [Input(v, 'n_clicks') for v in mode_list]
 )
 def mode_process(*args):
@@ -281,7 +331,9 @@ def mode_process(*args):
     to_see_games = 'block' if idx == 'replay_button' else 'none'
     to_see_agents = 'block' if idx in ('watch_agent_button', 'agent_stat_button') else 'none'
     to_train_agent = 'block' if idx == 'train_agent_button' else 'none'
-    return mode_list[idx][1], {'display': to_see_agents}, {'display': to_see_games}, {'display': to_train_agent}
+    to_test_agent = 'block' if idx == 'agent_stat_button' else 'none'
+    return mode_list[idx][1], {'display': to_see_agents}, {'display': to_see_games}, \
+        {'display': to_train_agent}, {'display': to_test_agent}
 
 
 # Game Replay callbacks
@@ -297,25 +349,34 @@ def find_games(style):
 
 
 @app.callback(
-    Output('chain', 'data'), Output('update_interval', 'disabled'),
-    Input('choose_for_replay', 'value'),
-    State('chain', 'data')
+    Output('replay_game_button', 'disabled'),
+    Input('choose_for_replay', 'value')
 )
-def replay_game(name, previous):
+def enable_replay_game_button(name):
+    return not bool(name)
+
+
+@app.callback(
+    Output('chain', 'data'), Output('update_interval', 'disabled'), Output('choose_for_replay', 'value'),
+    Input('replay_game_button', 'n_clicks'),
+    State('choose_for_replay', 'value'), State('chain', 'data')
+)
+def replay_game(name, game_file, previous_chain):
     if name:
-        if previous:
-            del globals()[previous]
-        chain = f'game{random.randrange(100000)}'
-        game = load_s3(name)
+        kill_chain(previous_chain)
+        chain = f'g{random.randrange(100000)}'
+        game = load_s3(game_file)
         globals()[chain] = {
+            'type': 'game',
             'games': game.replay(verbose=False),
             'step': 0
         }
-        return chain, False
+        return chain, False, None
     else:
         raise PreventUpdate
 
 
+# Board Refresh for "Game Replay" and "Agent Play" functions
 @app.callback(
     Output('game_card', 'children'), Output('update_interval', 'disabled'),
     Input('update_interval', 'n_intervals'),
@@ -326,18 +387,37 @@ def refresh_board(n, chain):
         point = globals().get(chain, None)
         if not point:
             raise PreventUpdate
-        step = point['step']
-        if step == -1:
-            return NUP, True
-        row, score, next_move = point['games'][step]
-        to_show = display_table(row, score, step, next_move)
-        point['step'] = -1 if next_move == -1 else point['step'] + 1
-        return to_show, NUP
+
+        # Game Replay
+        if point['type'] == 'game':
+            step = point['step']
+            if step == -1:
+                return NUP, True
+            row, score, next_move = point['games'][step]
+            to_show = display_table(row, score, step, next_move)
+            point['step'] = -1 if next_move == -1 else point['step'] + 1
+            return to_show, NUP
+
+        # Agent Play
+        elif point['type'] == 'agent':
+            step, game = point['step'], point['game']
+            if point['step'] >= game.odometer and not game.game_over(game.row):
+                return NUP, NUP
+            if step == -1:
+                return NUP, True
+            row, score, next_move = game.history[step]
+            to_show = display_table(row, score, step, next_move)
+            point['step'] = -1 if next_move == -1 else point['step'] + 1
+            return to_show, NUP
+
+        # Play Yourself
+        else:
+            raise PreventUpdate
     else:
         raise PreventUpdate
 
 
-# Agent Replay and Test callbacks
+# Agent Play callbacks
 @app.callback(
     Output('choose_stored_agent', 'options'),
     Input('input_group_agent', 'style')
@@ -363,17 +443,48 @@ def enable_agent_play_button(name):
 @app.callback(
     Output('chain', 'data'), Output('update_interval', 'disabled'),
     Input('replay_agent_button', 'n_clicks'),
-    State('chain', 'data'), State('choose_stored_agent', 'value'),
+    State('mode_text', 'children'), State('chain', 'data'), State('choose_stored_agent', 'value'),
     State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value')
 )
-def start_agent_play(n, previous, agent_file, depth, width, empty):
-    if n:
-        if previous:
-            del globals()[previous]
+def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
+    if n and mode == 'Watch agent':
+        kill_chain(previous_chain)
+        chain = f'a{random.randrange(100000)}'
+        game_logic.__dict__[chain] = True
         agent = load_s3(agent_file)
-        evaluator = agent.evaluate
-        chain = f'game{random.randrange(100000)}'
+        estimator = agent.evaluate
+        game = Game()
+        globals()[chain] = {
+            'type': 'agent',
+            'game': game,
+            'step': 0,
+        }
+        game.thread_trial(estimator, depth=depth, width=width, since_empty=empty, stopper=chain)
         return chain, False
+    else:
+        raise PreventUpdate
+
+
+# Agent Test callbacks
+@app.callback(
+    Output('stop_agent', 'style'), Output('current_process', 'data'),
+    Input('replay_agent_button', 'n_clicks'),
+    State('mode_text', 'children'),  State('current_process', 'data'), State('choose_stored_agent', 'value'),
+    State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value'),
+    State('choose_num_eps', 'value')
+)
+def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps):
+    if n and mode == 'Test agent':
+        kill_process(previous_proc)
+        agent = load_s3(agent_file)
+        estimator = agent.evaluate
+        params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps,
+                  'console': 'web', 'game_file': 'g/best_of_last_trial.pkl'}
+        proc = f'p_{random.randrange(100000)}'
+        LOGS.clear(start=f'Trial run for {num_eps} games, Agent = {agent.name}')
+        globals()[proc] = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
+        globals()[proc].start()
+        return {'display': 'block'}, proc
     else:
         raise PreventUpdate
 
@@ -450,7 +561,8 @@ def fill_params(is_open, agent_name, config_name):
 
 
 @app.callback(
-    Output('params_notification', 'children'), Output('stop_agent', 'style'), Output('current_process', 'data'),
+    Output('params_notification', 'children'), Output('current_process', 'data'),
+    Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'), Output('loading', 'className'),
     Input('start_training', 'n_clicks'),
     [State(f'par_{e}', 'value') for e in params_list] +
     [State('choose_train_agent', 'value'), State('current_process', 'data')]
@@ -460,22 +572,20 @@ def start_training(*args):
         message = NUP
         new_name, new_agent_file, current_process = args[1], args[-2], args[-1]
         ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
-        if current_process:
+        if current_process and current_process in globals():
             globals()[current_process].terminate()
             globals()[current_process].join()
-        if new_name == 'generate random':
-            new_name = f'agent_{random.randrange(100000)}'
-        else:
-            new_name = ''.join(x for x in new_name if x.isalnum())
+            del globals()[current_process]
+        name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if new_agent_file == 'New agent':
-            new_config_file = f'c/config_{new_name}.json'
+            new_config_file = f'c/config_{name}.json'
             save_s3(ui_params, new_config_file)
             message = my_alert(f'new config file {new_config_file[2:]} saved')
-            current = Q_agent(name=new_name, config_file=new_config_file, storage='s3', console='web')
+            current = Q_agent(name=name, config_file=new_config_file, storage='s3', console='web')
         else:
             current = load_s3(new_agent_file)
-            if current.name != new_name:
-                current.name = new_name
+            if current.name != name:
+                current.name = name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
             for e in ui_params:
@@ -483,25 +593,15 @@ def start_training(*args):
         current.logs = ''
         current.save_agent()
         proc = f'p_{random.randrange(100000)}'
-        LOGS.clear()
+        LOGS.clear(start='')
         globals()[proc] = Process(target=current.train_run, daemon=True)
         globals()[proc].start()
-        return message, {'display': 'block'}, proc
-    else:
-        raise PreventUpdate
-
-
-@app.callback(
-    Output('current_process', 'data'), Output('stop_agent', 'style'),
-    Input('stop_agent', 'n_clicks'),
-    State('current_process', 'data'),
-)
-def stop_agent(n, current_process):
-    if n and current_process:
-        globals()[current_process].terminate()
-        globals()[current_process].join()
-        LOGS.add('Training terminated')
-        return None, {'display': 'none'}
+        if name != new_name:
+            agents = [v for v in list_names_s3() if v[:2] == 'a/']
+            opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
+        else:
+            opts = NUP
+        return message, proc, opts, f'a/{current.file}', NUP
     else:
         raise PreventUpdate
 
@@ -514,6 +614,52 @@ def stop_agent(n, current_process):
 def update_logs(n):
     if n:
         return LOGS.get()
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('logs_display', 'children'),
+    Input('clear_logs', 'n_clicks')
+)
+def clear_logs(n):
+    if n:
+        LOGS.clear()
+        return NUP
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('download_file', 'data'),
+    Input('download_logs', 'n_clicks')
+)
+def download_logs(n):
+    if n:
+        return dcc.send_file(LOGS.file)
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('stop_agent', 'style'),
+    Input('current_process', 'data'),
+)
+def stop_agent(current_process):
+    return {'display': 'block' if current_process else 'none'}
+
+
+@app.callback(
+    Output('current_process', 'data'), Output('stop_agent', 'style'),
+    Input('stop_agent', 'n_clicks'),
+    State('current_process', 'data'),
+)
+def stop_agent(n, current_process):
+    if n:
+        if current_process:
+            kill_process(current_process)
+            LOGS.add('Process terminated by user')
+        return None, {'display': 'none'}
     else:
         raise PreventUpdate
 
@@ -543,6 +689,142 @@ def resume_game(n):
     return not bool(n)
 
 
+# Chart callbacks
+@app.callback(
+    Output('chart_button', 'disabled'), Output('agent_for_chart', 'data'),
+    Input('choose_train_agent', 'value'), Input('choose_stored_agent', 'value')
+)
+def enable_chart_button(*args):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    value = ctx.triggered[0]['value']
+    if value == 'New agent':
+        raise PreventUpdate
+    return False, ctx.triggered[0]['value']
+
+
+@app.callback(
+    Output('chart_page', 'is_open'),
+    Input('chart_button', 'n_clicks'), Input('close_chart', 'n_clicks'),
+    State('chart_page', 'is_open'),
+)
+def toggle_chart_page(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+
+@app.callback(
+    Output('chart_header', 'children'), Output('chart', 'children'),
+    Input('chart_page', 'is_open'),
+    State('agent_for_chart', 'data')
+)
+def make_chart(is_open, agent_file):
+    if is_open:
+        agent = load_s3(agent_file)
+        history = agent.train_history
+        header = f'Training history of {agent.name}'
+        if not history:
+            return header, 'No history yet'
+        x = np.array([v * 100 for v in range(1, len(history) + 1)])
+        fig = px.line(x=x, y=history, labels={'x': 'number of episodes', 'y': 'Average score of last 100 games'})
+        return header, dcc.Graph(figure=fig, style={'width': '100%', 'height': '100%'})
+    else:
+        raise PreventUpdate
+
+
+# Play Yourself callbacks
+@app.callback(
+    Output('play_instructions', 'is_open'), Output('gauge_group', 'style'), Output('play-yourself-group', 'style'),
+    Output('chain', 'data'), Output('update_interval', 'disabled'), Output('game_card', 'children'),
+    Input('mode_text', 'children'),
+    State('chain', 'data')
+)
+def play_yourself_start(mode, previous_chain):
+    if mode:
+        if mode == 'Play':
+            kill_chain(previous_chain)
+            chain = f'g{random.randrange(100000)}'
+            game = Game()
+            globals()[chain] = {
+                'type': 'play',
+                'game': game,
+            }
+            to_show = display_table(game.row, game.score, game.odometer, 0, self_play=True)
+            return True, {'display': 'none'}, {'display': 'block'}, chain, True, to_show
+        else:
+            return False, {'display': 'block'}, {'display': 'none'}, NUP, NUP, NUP
+
+
+@app.callback(
+    Output('game_card', 'children'),
+    Input('keyboard', 'n_keydowns'),
+    State('keyboard', 'keydown'), State('mode_text', 'children'), State('chain', 'data')
+)
+def keyboard_play(n, event, mode, chain):
+    if n and mode == 'Play':
+        key = json.dumps(event).split('"')[3]
+        if key.startswith('Arrow'):
+            move = keyboard_dict[key[5:]]
+            game = globals()[chain]['game']
+            new_row, new_score, change = game.pre_move(game.row, game.score, move)
+            if not change:
+                raise PreventUpdate
+            game.odometer += 1
+            game.row, game.score = new_row, new_score
+            game.new_tile()
+            next_move = -1 if game.game_over(game.row) else 0
+            return display_table(game.row, game.score, game.odometer, next_move, self_play=True)
+        else:
+            raise PreventUpdate
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('game_card', 'children'),
+    [Input(f'move_{i}', 'n_clicks') for i in range(4)],
+    State('chain', 'data')
+)
+def button_play(*args):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        raise PreventUpdate
+    move = int(ctx.triggered[0]['prop_id'].split('.')[0][-1])
+    game = globals()[args[-1]]['game']
+    new_row, new_score, change = game.pre_move(game.row, game.score, move)
+    if not change:
+        raise PreventUpdate
+    game.odometer += 1
+    game.row, game.score = new_row, new_score
+    game.new_tile()
+    next_move = -1 if game.game_over(game.row) else 0
+    return display_table(game.row, game.score, game.odometer, next_move, self_play=True)
+
+
+@app.callback(
+    Output('game_card', 'children'),
+    Input('restart_play', 'n_clicks'),
+    State('chain', 'data')
+)
+def restart_play(n, chain):
+    if n:
+        game = Game()
+        globals()[chain]['game'] = game
+        return display_table(game.row, game.score, game.odometer, 0, self_play=True)
+    else:
+        raise PreventUpdate
+
+
+app.clientside_callback(
+    ClientsideFunction(namespace='clientside', function_name='make_draggable'),
+    Output('play_instructions', 'className'),
+    State('play_instructions', 'id'), Input('play_instructions', 'is_open')
+)
+
+
 if __name__ == '__main__':
 
+    LOGS.clear()
     app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
