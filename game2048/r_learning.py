@@ -289,14 +289,3 @@ class Q_agent:
         plt.figure(figsize=(8, 6))
         plt.plot(ma100)
         plt.show()
-
-
-if __name__ == "__main__":
-
-    # Run the below line to see the magic. How it starts with random moves and immediately
-    # starts climbing the ladder
-    a = load_s3('a/Loki.pkl')
-    print(a.alpha, a.decay, a.step)
-    sys.exit()
-    a_4 = Q_agent(name='agent')
-    a_4.train_run(chart=True)

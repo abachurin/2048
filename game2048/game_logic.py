@@ -317,13 +317,3 @@ class Game:
             print('no more moves possible, final position')
         chain[self.odometer] = (self.row.copy(), self.score, -1)
         return chain
-
-
-if __name__ == "__main__":
-
-    # Just in case you enjoy watching the paint dry
-
-    est = random_eval
-    g = Game()
-    g.trial_run(est, verbose=False)
-
