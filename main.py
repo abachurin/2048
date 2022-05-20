@@ -34,8 +34,8 @@ params_dict = {
     'decay_model': {'element': 'select', 'value': 'simple', 'options': ['simple', 'scaled'], 'disable': True},
     'n': {'element': 'select', 'value': 4, 'options': [2, 3, 4], 'disable': True},
     'alpha': {'element': 'input', 'type': 'number', 'value': 0.25, 'step': 0.01, 'disable': False},
-    'decay': {'element': 'input', 'type': 'number', 'value': 0.75, 'step': 0.05, 'disable': False},
-    'decay_step': {'element': 'input', 'type': 'number', 'value': 10000, 'step': 5000, 'disable': False},
+    'decay': {'element': 'input', 'type': 'number', 'value': 0.75, 'step': 0.01, 'disable': False},
+    'decay_step': {'element': 'input', 'type': 'number', 'value': 10000, 'step': 1000, 'disable': False},
     'low_alpha_limit': {'element': 'input', 'type': 'number', 'value': 0.01, 'step': 0.0025, 'disable': False}
 }
 keyboard_dict = {
@@ -72,7 +72,7 @@ def opt_list(l):
 
 
 def my_alert(text, info=False):
-    return dbc.Alert(f' {text}', color='info' if info else 'success', dismissable=True, duration=10000,
+    return dbc.Alert(f' {text} ', color='info' if info else 'success', dismissable=True, duration=100000,
                      className='admin-notification')
 
 
@@ -156,10 +156,10 @@ app.layout = dbc.Container([
     dbc.Row(html.H3('Reinforcement Learning 2048 Agent, \u00A9abachurin', className='card-header my-header')),
     dbc.Row([
         dbc.Col(dbc.Card([
-            html.H6(id='mode_text', className='mode-text'),
+            html.H6('Choose:', id='mode_text', className='mode-text'),
             dbc.DropdownMenu(id='choose_option', label='MODE ?', color='success', className='mode-choose',
                              children=[dbc.DropdownMenuItem(mode_list[v][0], id=v, n_clicks=0) for v in mode_list]),
-            dbc.Button('Train History Chart', id='chart_button', disabled=True, className='chart-button'),
+            dbc.Button(id='chart_button', className='chart-button', style={'display': 'none'}),
             dbc.InputGroup([
                 dbc.InputGroupText('Game:', className='input-text'),
                 dbc.Select(id='choose_for_replay', className='input-field'),
@@ -180,18 +180,18 @@ app.layout = dbc.Container([
                     dbc.Input(id='choose_since_empty', type='number', min=0, max=8, value=6,
                               className='lf-cell lf-field lf-empty'),
                 ], className='lf-params'),
+                dbc.Button('LAUNCH!', id='replay_agent_button', disabled=True, className='launch-game'),
                 html.Div([
                     dbc.InputGroupText('N:', className='num-eps-text'),
                     dbc.Input(id='choose_num_eps', type='number', min=10, value=100, step=10, className='num-eps-field')
-                    ], id='num_eps', style={'display': 'none'}, className='num-eps'),
-                dbc.Button('LAUNCH!', id='replay_agent_button', disabled=True, className='launch-game')
+                    ], id='num_eps', style={'display': 'none'}, className='num-eps')
                 ], id='input_group_agent', style={'display': 'none'}, className='my-input-group',
             ),
             dbc.InputGroup([
                 dbc.InputGroupText('Agent:', className='input-text'),
                 dbc.Select(id='choose_train_agent', className='input-field'),
-                dbc.InputGroupText('Config:', className='input-text second-line'),
-                dbc.Select(id='choose_config', disabled=True, className='input-field second-line'),
+                dbc.InputGroupText('Config:', className='input-text config-text'),
+                dbc.Select(id='choose_config', disabled=True, className='input-field config-input'),
                 dbc.Button('Confirm parameters', id='go_to_params', disabled=True, className='go-to-params'),
                 ], id='input_group_train', style={'display': 'none'}, className='my-input-group',
             ),
@@ -563,6 +563,7 @@ def fill_params(is_open, agent_name, config_name):
 @app.callback(
     Output('params_notification', 'children'), Output('current_process', 'data'),
     Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'), Output('loading', 'className'),
+    Output('mode_text', 'children'), Output('input_group_train', 'style'),
     Input('start_training', 'n_clicks'),
     [State(f'par_{e}', 'value') for e in params_list] +
     [State('choose_train_agent', 'value'), State('current_process', 'data')]
@@ -572,10 +573,10 @@ def start_training(*args):
         message = NUP
         new_name, new_agent_file, current_process = args[1], args[-2], args[-1]
         ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
-        if current_process and current_process in globals():
-            globals()[current_process].terminate()
-            globals()[current_process].join()
-            del globals()[current_process]
+        bad_inputs = [e for e in ui_params if ui_params[e] is None]
+        if bad_inputs:
+            return my_alert(f'Parameters {bad_inputs} unacceptable', info=True), NUP, NUP, NUP, NUP, NUP, NUP
+        kill_process(current_process)
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if new_agent_file == 'New agent':
             new_config_file = f'c/config_{name}.json'
@@ -601,7 +602,7 @@ def start_training(*args):
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, proc, opts, f'a/{current.file}', NUP
+        return message, proc, opts, f'a/{current.file}', NUP, 'Choose:', {'display': 'none'}
     else:
         raise PreventUpdate
 
@@ -691,17 +692,17 @@ def resume_game(n):
 
 # Chart callbacks
 @app.callback(
-    Output('chart_button', 'disabled'), Output('agent_for_chart', 'data'),
+    Output('chart_button', 'style'), Output('chart_button', 'children'), Output('agent_for_chart', 'data'),
     Input('choose_train_agent', 'value'), Input('choose_stored_agent', 'value')
 )
 def enable_chart_button(*args):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
-    value = ctx.triggered[0]['value']
-    if value == 'New agent':
+    agent = ctx.triggered[0]['value']
+    if agent == 'New agent':
         raise PreventUpdate
-    return False, ctx.triggered[0]['value']
+    return {'display': 'block'}, f'{agent[2: -4]} train history chart', agent
 
 
 @app.callback(
@@ -723,6 +724,8 @@ def toggle_chart_page(n1, n2, is_open):
 def make_chart(is_open, agent_file):
     if is_open:
         agent = load_s3(agent_file)
+        if agent is None:
+            return '', f'No Agent with this name in storage'
         history = agent.train_history
         header = f'Training history of {agent.name}'
         if not history:

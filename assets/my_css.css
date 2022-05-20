@@ -30,7 +30,8 @@
 }
 
 .mode-choose {
-    top: 46px;
+    position: absolute;
+    top: 56px;
 }
 
 .admin-page-content {
@@ -72,7 +73,7 @@
 
 .admin-notification {
     top: 8px;
-    right: 10px;
+    right: 40px;
     white-space: pre;
     height: 38px;
     padding: 0.25rem 0.25rem
@@ -89,6 +90,7 @@
 .input-text {
     position: absolute;
     width: 75px;
+    height: 36px;
     background: var(--bs-gray-600);
     border: 2px solid var(--bs-black);
     border-radius: 0rem;
@@ -104,14 +106,17 @@
     border-radius: 0rem;
 }
 
-.second-line {
-    position: absolute;
+.config-text {
     top: 38px;
+}
+
+.config-input {
+    top: 2px;
 }
 
 .go-to-params {
     position: absolute;
-    top: 80px;
+    top: 10px;
     width: 200px;
     background: var(--bs-pink);
     border-radius: 0rem;
@@ -251,6 +256,7 @@
 
 .par-input-field {
      width: calc(100% - var(--param-text-len));
+     padding: 10px;
      border: 2px solid var(--bs-black);
 }
 
@@ -317,7 +323,7 @@
 
 .launch-game {
     position: absolute;
-    top: 140px;
+    top: 104px;
     width: 120px;
     background: var(--bs-pink);
     border-radius: 0rem;
@@ -325,20 +331,10 @@
 
 .replay-game {
     position: absolute;
-    top: 45px;
+    top: 10px;
     width: 200px;
     background: var(--bs-pink);
     border-radius: 0rem;
-}
-
-.par-input-text {
-    width: var(--param-text-len);
-    border: 2px solid var(--bs-black);
-}
-
-.par-input-field {
-     width: calc(100% - var(--param-text-len));
-     border: 2px solid var(--bs-black);
 }
 
 .num-eps {
@@ -368,9 +364,11 @@
 
 .chart-button {
     position: absolute;
-    top: 126px;
+    top: 104px;
     width: 130px;
-    background: var(--bs-pink);
+    height: 86px;
+    background: #ffff00;
+    color: black;
 }
 
 #play_instructions {
