@@ -26,7 +26,8 @@ act_list = {
     'upload': 'Upload',
     'delete': 'Delete'
 }
-params_list = ['name', 'weights_type', 'reward', 'decay_model', 'n', 'alpha', 'decay', 'decay_step', 'low_alpha_limit']
+params_list = ['name', 'weights_type', 'reward', 'decay_model', 'n', 'alpha', 'decay', 'decay_step',
+               'low_alpha_limit', 'Training episodes']
 params_dict = {
     'name': {'element': 'input', 'type': 'text', 'value': 'test_agent', 'disable': False},
     'weights_type': {'element': 'select', 'value': 'random', 'options': ['random', 'zero'], 'disable': True},
@@ -36,7 +37,8 @@ params_dict = {
     'alpha': {'element': 'input', 'type': 'number', 'value': 0.25, 'step': 0.01, 'disable': False},
     'decay': {'element': 'input', 'type': 'number', 'value': 0.75, 'step': 0.01, 'disable': False},
     'decay_step': {'element': 'input', 'type': 'number', 'value': 10000, 'step': 1000, 'disable': False},
-    'low_alpha_limit': {'element': 'input', 'type': 'number', 'value': 0.01, 'step': 0.0025, 'disable': False}
+    'low_alpha_limit': {'element': 'input', 'type': 'number', 'value': 0.01, 'step': 0.0025, 'disable': False},
+    'Training episodes': {'element': 'input', 'type': 'number', 'value': 100000, 'step': 1000, 'disable': False},
 }
 keyboard_dict = {
     'Left': 0,
@@ -72,7 +74,7 @@ def opt_list(l):
 
 
 def my_alert(text, info=False):
-    return dbc.Alert(f' {text} ', color='info' if info else 'success', dismissable=True, duration=100000,
+    return dbc.Alert(f' {text} ', color='info' if info else 'success', dismissable=True, duration=5000,
                      className='admin-notification')
 
 
@@ -547,7 +549,7 @@ def fill_params(is_open, agent_name, config_name):
         if agent_name != 'New agent':
             agent = load_s3(agent_name)
             dis = [params_dict[e]['disable'] for e in params_list]
-            ui_params = [getattr(agent, e) for e in params_list]
+            ui_params = [getattr(agent, e) for e in params_list[:-1]] + [params_dict['Training episodes']['value']]
         elif config_name != 'New config':
             config = load_s3(config_name)
             dis = [False for e in params_list]
@@ -573,10 +575,12 @@ def start_training(*args):
         message = NUP
         new_name, new_agent_file, current_process = args[1], args[-2], args[-1]
         ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
+        ui_params['n'] = int(ui_params['n'])
         bad_inputs = [e for e in ui_params if ui_params[e] is None]
         if bad_inputs:
             return my_alert(f'Parameters {bad_inputs} unacceptable', info=True), NUP, NUP, NUP, NUP, NUP, NUP
         kill_process(current_process)
+        num_eps = ui_params.pop('Training episodes')
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if new_agent_file == 'New agent':
             new_config_file = f'c/config_{name}.json'
@@ -595,7 +599,7 @@ def start_training(*args):
         current.save_agent()
         proc = f'p_{random.randrange(100000)}'
         LOGS.clear(start='')
-        globals()[proc] = Process(target=current.train_run, daemon=True)
+        globals()[proc] = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         globals()[proc].start()
         if name != new_name:
             agents = [v for v in list_names_s3() if v[:2] == 'a/']

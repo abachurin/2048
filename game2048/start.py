@@ -5,7 +5,6 @@ from pprint import pprint
 import random
 import pickle
 import json
-import matplotlib.pyplot as plt
 from functools import partial
 from collections import deque
 import os

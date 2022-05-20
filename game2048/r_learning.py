@@ -107,7 +107,7 @@ class Q_agent:
         self.top_game = None
         self.top_score = 0
         self.train_history = []
-        self.num_feat, self.size_feat = Q_agent.parameter_shape[n]
+        self.num_feat, self.size_feat = Q_agent.parameter_shape[self.n]
         self.features = Q_agent.feature_functions[self.n]
         self.top_tile = 10
         self.max_in_f = max_tile_in_feature(n)
@@ -121,6 +121,10 @@ class Q_agent:
             self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
         else:
             self.weights = [[0] * self.size_feat] * self.num_feat
+
+    def __str__(self):
+        return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
+               f'trained for {self.step} episodes, top score = {self.top_score}'
 
     def save_agent_local(self):
         with open(self.file, 'wb') as f:
