@@ -1,4 +1,4 @@
-from game2048.game_logic import *
+from .game_logic import *
 
 
 def basic_reward(row, score, new_row, new_score):
@@ -73,50 +73,70 @@ def max_tile_in_feature(n):
 
 class Q_agent:
 
-    save_file = "agent.pkl"     # saves the weights, training step, current alpha and type of features
     feature_functions = {2: f_2, 3: f_3, 4: f_4}
     parameter_shape = {2: (24, 256), 3: (52, 4096), 4: (17, 65536)}
 
-    def __init__(self, weights='random', reward=basic_reward, mode='simple', step=0,
-                 alpha=None, decay=None, n=None, file=None):
-        self.R = reward
-        self.step = step
-        self.file = file or Q_agent.save_file
-        self._upd = self._upd_simple if mode == 'simple' else self._upd_scaled
+    def __init__(self, name='agent', config_file=None, storage='s3', console='local', weights_type='random',
+                 reward='basic', decay_model='simple', n=4, alpha=0.25, decay=0.75,
+                 decay_step=10000, low_alpha_limit=0.01):
+        self.name = name
+        self.file = name + '.pkl'
+        self.game_file = 'best_of_' + self.file
+        self.save_agent = self.save_agent_s3 if storage == 's3' else self.save_agent_local
+        self.save_game = self.save_game_s3 if storage == 's3' else self.save_game_local
+        self.print = LOGS.add if console == 'web' else print
+
+        if config_file:
+            config = load_s3(config_file) or {}
+        else:
+            config = {}
+        self.weights_type = config.get('weights', weights_type)
+        self.reward = config.get('reward', reward)
+        self.decay_model = config.get('decay_model', decay_model)
+        self.n = config.get('n', n)
+        self.alpha = config.get('alpha', alpha)
+        self.decay = config.get('decay', decay)
+        self.decay_step = config.get('decay_step', decay_step)
+        self.low_alpha_limit = config.get('low_alpha_limit', low_alpha_limit)
+
+        self.R = basic_reward if reward == 'basic' else log_reward
+        self.decay_model = decay_model
+        self._upd = self._upd_simple if decay_model == 'simple' else self._upd_scaled
+        self.logs = ''
+        self.step = 0
         self.top_game = None
         self.top_score = 0
         self.train_history = []
-
-        # take default values from config file
-        with open('config.json', 'r') as f:
-            config = json.load(f)
-        self.next_decay = self.decay_step = config['decay_step']
-        self.low_alpha_limit = config['low_alpha_limit']
-        self.alpha = alpha or config['alpha']
-        self.decay = decay or config['decay']
-        self.n = n or config['n']
-
         self.num_feat, self.size_feat = Q_agent.parameter_shape[n]
         self.features = Q_agent.feature_functions[self.n]
         self.top_tile = 10
         self.max_in_f = max_tile_in_feature(n)
         self.lr = {v: self.alpha for v in range(16)}
         self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
+        self.next_decay = self.decay_step
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
-        if weights == 'random':
+        if self.weights_type == 'random':
             self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
-        elif weights == 0:
+        else:
             self.weights = [[0] * self.size_feat] * self.num_feat
 
-    def save_agent(self, file=None):
-        file = file or self.file
-        with open(file, 'wb') as f:
+    def save_agent_local(self):
+        with open(self.file, 'wb') as f:
             pickle.dump(self, f, -1)
 
+    def save_agent_s3(self):
+        save_s3(self, 'a/' + self.file)
+
+    def save_game_local(self, game):
+        game.save_game(self.game_file)
+
+    def save_game_s3(self, game):
+        save_s3(game, 'g/' + self.game_file)
+
     @staticmethod
-    def load_agent(file=save_file):
+    def load_agent(file):
         with open(file, 'rb') as f:
             agent = pickle.load(f)
         return agent
@@ -166,15 +186,15 @@ class Q_agent:
                         action, best_value = direction, value
                         best_row, best_score = new_row, new_score
             if state is not None:
-                # reward = self.R(game.row, game.score, best_row, best_score)
-                # dw = (reward + best_value - old_label) / self.num_feat
-                dw = (best_score - game.score + best_value - old_label) / self.num_feat
+                reward = self.R(game.row, game.score, best_row, best_score)
+                dw = (reward + best_value - old_label) / self.num_feat
                 self.update(state, dw)
             game.row, game.score = best_row, best_score
             game.odometer += 1
             game.moves.append(action)
             state, old_label = game.row.copy(), best_value
             game.new_tile()
+        game.moves.append(-1)
         dw = - old_label / self.num_feat
         self.update(state, dw)
 
@@ -182,9 +202,12 @@ class Q_agent:
         return game
 
     def _display_lr(self):
-        print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
-        pprint({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
-        print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
+        if self.decay_model == 'scaled':
+            self.print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
+            self.print({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
+            self.print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
+        elif self.decay_model == 'simple':
+            self.print(f'episode = {self.step + 1}, current learning rate = {self.alpha}:')
 
     def decay_alpha(self):
         for i in range(16):
@@ -193,20 +216,21 @@ class Q_agent:
         self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
         self.alpha = max(self.alpha * self.decay, self.low_alpha_limit)
         self.next_decay = self.step + self.decay_step
-        print('------')
+        self.print('------')
         self._display_lr()
-        print('------')
+        self.print('------')
 
     # We save the agent every 100 steps, and best game so far - when we beat the previous record.
     # So if you train it and have to make a break at some point - no problem, by loading the agent back
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    def train_run(self, num_eps, file_for_game='best_game.pkl', start_ep=0, saving=True, chart=False):
+    def train_run(self, num_eps=100000, saving=True, chart=False):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         global_start = start = time.time()
-        for i in range(start_ep + 1, start_ep + num_eps + 2):
+        self.print(f'Agent {self.name} training session started')
+        for i in range(self.step + 1, self.step + num_eps + 2):
 
             # check if it's time to decay learning rate
             if self.step > self.next_decay and self.alpha > self.low_alpha_limit:
@@ -217,12 +241,10 @@ class Q_agent:
             av1000.append(game.score)
             if game.score > self.top_score:
                 self.top_game, self.top_score = game, game.score
-
-                print(f'new best game at episode {i}!')
-                print(game)
+                self.print(f'\nnew best game at episode {i}!\n{game.__str__()}\n')
                 if saving:
-                    game.save_game(file=file_for_game)
-                    print(f'game saved at {file_for_game}')
+                    self.save_game(game)
+                    self.print(f'game saved at {self.game_file}')
             max_tile = np.max(game.row)
             if max_tile >= 10:
                 reached[max_tile - 10] += 1
@@ -231,33 +253,34 @@ class Q_agent:
                 self.top_tile = max_tile
                 self.decay_alpha()
 
-            ma = int(np.mean(ma100))
             if i % 100 == 0:
-                print(f'{i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
+                ma = int(np.mean(ma100))
+                self.train_history.append(ma)
+                self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
+                self.save_agent()
             if i % 1000 == 0:
                 average = np.mean(av1000)
-                self.train_history.append(average)
-                print('\n------')
-                print((time.time() - start) / 60, "min")
+                self.print('\n------')
+                self.print(f'{(time.time() - start) / 60} min')
                 start = time.time()
-                print(f'episode = {i}')
-                print(f'average over last 1000 episodes = {average}')
+                self.print(f'episode = {i}')
+                self.print(f'average over last 1000 episodes = {average}')
                 av1000 = []
                 for j in range(7):
                     r = sum(reached[j:]) / 10
-                    print(f'{1 << (j + 10)} reached in {r} %')
+                    self.print(f'{1 << (j + 10)} reached in {r} %')
                 reached = [0] * 7
-                print(f'best score so far = {self.top_score}')
-                print(self.top_game)
+                self.print(f'best score so far = {self.top_score}')
+                self.print(self.top_game.__str__())
                 self._display_lr()
-                print('------\n')
+                self.print('------\n')
                 if saving:
                     self.save_agent()
-                    print(f'agent saved in {self.file}')
-        print(f'Total time for {num_eps} = {time.time() - global_start}')
+                    self.print(f'agent saved in {self.file}')
+        self.print(f'Total time for {num_eps} = {time.time() - global_start}')
         if saving:
             self.save_agent()
-            print(f'agent saved in {self.file}')
+            self.print(f'agent saved in {self.file}')
         if chart:
             self.chart_ma_100(self.train_history)
 
@@ -270,10 +293,10 @@ class Q_agent:
 
 if __name__ == "__main__":
 
-    num_eps = 200000
-
     # Run the below line to see the magic. How it starts with random moves and immediately
     # starts climbing the ladder
-
-    a_4 = Q_agent(n=4, mode='scaled', file='agent_4.pkl')
-    a_4.train_run(num_eps=num_eps, start_ep=0, chart=True)
+    a = load_s3('a/Loki.pkl')
+    print(a.alpha, a.decay, a.step)
+    sys.exit()
+    a_4 = Q_agent(name='agent')
+    a_4.train_run(chart=True)
