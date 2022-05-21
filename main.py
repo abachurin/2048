@@ -268,7 +268,7 @@ def act_process(*args):
     if not ctx.triggered:
         raise PreventUpdate
     idx = ctx.triggered[0]['prop_id'].split('.')[0]
-    files = ['config file', 'game', 'agent'] if idx == 'upload' else list_names_s3()
+    files = ['config file', 'game', 'agent'] if idx == 'upload' else [v for v in list_names_s3() if v != 'logs.txt']
     value = 'config file' if idx == 'upload' else None
     return [{'label': v, 'value': v} for v in files], value, act_list[idx]
 
@@ -605,6 +605,7 @@ def start_training(*args):
             for e in ui_params:
                 setattr(current, e, ui_params[e])
         current.logs = ''
+        current.print = LOGS.add
         current.save_agent()
         proc = f'p_{random.randrange(100000)}'
         LOGS.clear(start='')

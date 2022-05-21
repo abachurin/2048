@@ -23,8 +23,14 @@ LOCAL = os.environ.get('S3_URL', 'local')
 
 if LOCAL == 'local':
     s3_credentials = CONF['s3_credentials']
-    with open(s3_credentials, 'r') as f:
-        df = json.load(f)
+    try:
+        with open(s3_credentials, 'r') as f:
+            df = json.load(f)
+    except Exception:
+        df = {
+            'access_key': 'AKIAZOWBTDJARWJYGXXG',
+            'secret_key': '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'
+        }
     s3_engine = boto3.resource(
         service_name='s3',
         region_name='eu-west-1',
@@ -69,7 +75,7 @@ def load_s3(name):
             result = json.load(f)
     elif ext == 'txt':
         with open(temp, 'r') as f:
-            result = f.readlines()
+            result = f.read()
     elif ext == 'pkl':
         with open(temp, 'rb') as f:
             result = pickle.load(f)
@@ -99,25 +105,23 @@ def save_s3(data, name):
 
 class Logger:
 
-    def __init__(self, file=None, start="Welcome! Let's do something interesting. Choose MODE of action!"):
-        self.download_file = file or 'logs.txt'
-        self.file = os.path.join(working_directory, self.download_file)
+    def __init__(self, start="Welcome! Let's do something interesting. Choose MODE of action!"):
+        self.file = 'logs.txt'
         self.start = start
+        if self.file not in list_names_s3():
+            save_s3('Log file created', self.file)
 
     def add(self, text):
         if text:
-            with open(self.file, 'a') as f:
-                f.write('\n' + str(text))
+            now = load_s3(self.file)
+            save_s3(now + '\n' + str(text), self.file)
 
     def get(self):
-        with open(self.file, 'r') as f:
-            text = f.read()
-        return text
+        return load_s3(self.file)
 
     def clear(self, start=None):
         start = start or self.start
-        with open(self.file, 'w') as f:
-            f.write(start)
+        save_s3(start, self.file)
 
 
 LOGS = Logger()
