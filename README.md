@@ -122,7 +122,7 @@ best score = 80496
 2				4				8				4
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/images/score_chart_3_tile.png?raw=true>
+<img src = https://github.com/abachurin/2048/blob/master/images/score_chart_3_tile.png?raw=true>
 </p>
 
 * Model with some combinations of 4 adjacent tiles, trained over 100,000 episodes.
@@ -140,7 +140,7 @@ best score = 130664
 2				16				128				32
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/blob/master/score_chart.png?raw=true>
+<img src = https://github.com/abachurin/2048/blob/master/score_chart_4_tile.png?raw=true>
 </p>
 
 * Model that combines my best RL Agent with my version of Expectimax.
