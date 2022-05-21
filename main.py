@@ -161,7 +161,8 @@ app.layout = dbc.Container([
         dbc.ModalBody(id='chart'),
         dbc.ModalFooter(dbc.Button('CLOSE', id='close_chart', n_clicks=0))
     ], id='chart_page', size='xl', centered=True, contentClassName='chart-page'),
-    dbc.Row(html.H3('Reinforcement Learning 2048 Agent, \u00A9abachurin', className='card-header my-header')),
+    dbc.Row(html.H4(['Reinforcement Learning 2048 Agent ',
+                     dcc.Link('\u00A9abachurin', href='abachurin.com')], className='card-header my-header')),
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H6('Choose:', id='mode_text', className='mode-text'),
