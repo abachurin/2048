@@ -105,7 +105,7 @@ best score = 56776
 4				64				32				2
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/images/score_chart_2_tile.png?raw=true>
+<img src = https://github.com/abachurin/2048/blob/master/images/score_chart_2_tile.png?raw=true>
 </p>
 
 * Model with combinations of 3 adjacent tiles, trained over 20,000 episodes.
