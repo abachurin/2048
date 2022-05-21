@@ -7,6 +7,8 @@ COPY requirements.txt ./requirements.txt
 RUN pip3 install -r requirements.txt
 COPY . .
 
+ENV S3_URL="AWS"
+
 ENV PYTHONPATH /code
 RUN export PYTHONPATH=.
 ENTRYPOINT ["python3"]
