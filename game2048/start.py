@@ -32,9 +32,14 @@ if LOCAL == 'local':
         aws_secret_access_key=df['secret_key']
     )
     s3_bucket_name = 'ab2048'
+    s3_bucket = s3_engine.Bucket(s3_bucket_name)
+elif LOCAL == 'AWS':
+    print('Ola!')
+    s3_bucket_name = None
+    s3_bucket = None
 else:
-    pass
-s3_bucket = s3_engine.Bucket(s3_bucket_name)
+    s3_bucket_name = None
+    s3_bucket = None
 
 
 def temp_name(name, miss=2):
@@ -118,4 +123,23 @@ class Logger:
         save_s3(start, self.file)
 
 
-LOGS = Logger()
+class EmptyLogger:
+
+    def __init__(self, start="Welcome! Let's do something interesting. Choose MODE of action!"):
+        pass
+
+    def add(self, text):
+        pass
+
+    def get(self):
+        pass
+
+    def clear(self, start=None):
+        pass
+
+
+
+try:
+    LOGS = Logger()
+except Exception:
+    LOGS = EmptyLogger()
