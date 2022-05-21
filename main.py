@@ -77,23 +77,27 @@ def my_alert(text, info=False):
                      className='admin-notification')
 
 
+def while_loading(id, top):
+    return dcc.Loading(html.Div(id=id), type='cube', color='#77b300', className='loader', style={'top': f'{top}px'})
+
+
 def params_line(e):
     data = params_dict[e]
     if data['element'] == 'input':
         if 'step' in data:
             return dbc.InputGroup([
                 dbc.InputGroupText(e, className='par-input-text no-border'),
-                dbc.Input(id=f'par_{e}', type=data['type'], value=data['value'], step=data['step'],
+                dbc.Input(id=f'par_{e}', type=data['type'], step=data['step'],
                           className='par-input-field no-border')], className='no-border')
         else:
             return dbc.InputGroup([
                 dbc.InputGroupText(e, className='par-input-text no-border'),
-                dbc.Input(id=f'par_{e}', type=data['type'], value=data['value'],
+                dbc.Input(id=f'par_{e}', type=data['type'],
                           className='par-input-field no-border')], className='no-border')
     else:
         return dbc.InputGroup([
             dbc.InputGroupText(e, className='par-input-text no-border'),
-            dbc.Select(id=f'par_{e}', options=opt_list(data['options']), value=data['value'],
+            dbc.Select(id=f'par_{e}', options=opt_list(data['options']),
                        className='par-select-field no-border')], className='no-border')
 
 
@@ -125,7 +129,7 @@ app.layout = dbc.Container([
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
     dcc.Interval(id='logs_interval', interval=1000, n_intervals=0),
     dbc.Modal([
-        dcc.Loading(html.Div(id='uploading'), type='cube', color='#77b300', parent_className='uploader'),
+        while_loading('uploading', 25),
         dbc.ModalHeader('File Management'),
         dbc.ModalBody([
             dbc.DropdownMenu(id='choose_file_action', label='Action:',
@@ -137,12 +141,12 @@ app.layout = dbc.Container([
         ], className='admin-page-body'),
         dbc.ModalFooter([
             html.Div(id='admin_notification'),
-            dbc.Button('check', id='check_button', n_clicks=0),
             dbc.Button('CLOSE', id='close_admin', n_clicks=0)
         ])
     ], id='admin_page', size='lg', centered=True, contentClassName='admin-page'),
     dbc.Modal([
-        dcc.Loading(html.Div(id='loading'), type='cube', color='#77b300', parent_className='loader'),
+        while_loading('fill_loading', 125),
+        while_loading('loading', 125),
         dbc.ModalHeader('Enter/adjust/confirm parameters for an Agent'),
         dbc.ModalBody([params_line(e) for e in params_list], className='params-page-body'),
         dbc.ModalFooter([
@@ -152,6 +156,7 @@ app.layout = dbc.Container([
         ])
     ], id='params_page', size='lg', centered=True, contentClassName='params-page'),
     dbc.Modal([
+        while_loading('chart_loading', 0),
         dbc.ModalHeader(id='chart_header'),
         dbc.ModalBody(id='chart'),
         dbc.ModalFooter(dbc.Button('CLOSE', id='close_chart', n_clicks=0))
@@ -494,7 +499,8 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
 
 # Agent Train callbacks
 @app.callback(
-    Output('choose_train_agent', 'options'), Output('choose_config', 'options'),
+    Output('choose_train_agent', 'options'),
+    Output('choose_config', 'options'), Output('choose_config', 'value'),
     Input('input_group_train', 'style')
 )
 def find_agents(style):
@@ -504,7 +510,7 @@ def find_agents(style):
     configs = [v for v in list_names_s3() if v[:2] == 'c/']
     agent_options = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
     conf_options = [{'label': v[2:-5], 'value': v} for v in configs] + [{'label': 'New config', 'value': 'New config'}]
-    return agent_options, conf_options
+    return agent_options, conf_options, None
 
 
 @app.callback(
@@ -541,7 +547,8 @@ def toggle_params_page(n1, n2, is_open):
 
 
 @app.callback(
-    [Output(f'par_{e}', 'disabled') for e in params_list] + [Output(f'par_{e}', 'value') for e in params_list],
+    [Output(f'par_{e}', 'disabled') for e in params_list] + [Output(f'par_{e}', 'value') for e in params_list] +
+    [Output('fill_loading', 'className')],
     Input('params_page', 'is_open'),
     State('choose_train_agent', 'value'), State('choose_config', 'value'),
 )
@@ -558,7 +565,7 @@ def fill_params(is_open, agent_name, config_name):
         else:
             dis = [False for e in params_list]
             ui_params = [params_dict[e]['value'] for e in params_list]
-        return dis + ui_params
+        return dis + ui_params + [NUP]
     else:
         raise PreventUpdate
 
@@ -722,7 +729,7 @@ def toggle_chart_page(n1, n2, is_open):
 
 
 @app.callback(
-    Output('chart_header', 'children'), Output('chart', 'children'),
+    Output('chart_header', 'children'), Output('chart', 'children'), Output('chart_loading', 'className'),
     Input('chart_page', 'is_open'),
     State('agent_for_chart', 'data')
 )
@@ -730,14 +737,14 @@ def make_chart(is_open, agent_file):
     if is_open:
         agent = load_s3(agent_file)
         if agent is None:
-            return '', f'No Agent with this name in storage'
+            return '', f'No Agent with this name in storage', NUP
         history = agent.train_history
         header = f'Training history of {agent.name}'
         if not history:
-            return header, 'No history yet'
+            return header, 'No history yet', NUP
         x = np.array([v * 100 for v in range(1, len(history) + 1)])
         fig = px.line(x=x, y=history, labels={'x': 'number of episodes', 'y': 'Average score of last 100 games'})
-        return header, dcc.Graph(figure=fig, style={'width': '100%', 'height': '100%'})
+        return header, dcc.Graph(figure=fig, style={'width': '100%', 'height': '100%'}), NUP
     else:
         raise PreventUpdate
 

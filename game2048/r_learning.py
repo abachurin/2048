@@ -240,7 +240,7 @@ class Q_agent:
         reached = [0] * 7
         save_steps = 1000 if self.n == 5 else (250 if self.n == 4 else 100)
         global_start = start = time.time()
-        self.print(f'Agent {self.name} training session started')
+        self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')
         for i in range(self.step + 1, self.step + num_eps + 2):
 
