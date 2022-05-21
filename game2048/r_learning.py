@@ -44,22 +44,14 @@ def f_4(x):
     return np.concatenate([x_vert, x_hor, x_sq])
 
 
-# Finally, we can try taking as features "every cell + direct neighbours", that is 16 features,
-# but we have quintets for middle cells, hence a lot of weights. Problem is - doesn't train far :)
+# Finally, we try adding 4 "cross" features for middle cells
 def f_5(x):
-    x_00 = 256 * x[0, 0]
-    x_03 = 256 * x[0, 3]
-    x_30 = 256 * x[3, 0]
-    x_33 = 256 * x[3, 3]
-    x_corners = [x_00 + 16 * x[0, 1] + x[1, 0], x_03 + 16 * x[0, 2] + x[1, 3],
-                 x_30 + 16 * x[3, 1] + x[2, 0], x_33 + 16 * x[3, 2] + x[2, 3]]
-    x_borders = [4096 * x[1, 0] + x_00 + 16 * x[2, 0] + x[1, 1], 4096 * x[2, 0] + x_30 + 16 * x[1, 0] + x[2, 1],
-                 4096 * x[1, 3] + x_03 + 16 * x[2, 3] + x[1, 2], 4096 * x[2, 3] + x_33 + 16 * x[2, 1] + x[2, 2],
-                 4096 * x[0, 1] + x_00 + 16 * x[0, 2] + x[1, 1], 4096 * x[0, 2] + x_03 + 16 * x[0, 1] + x[1, 2],
-                 4096 * x[3, 1] + x_30 + 16 * x[3, 2] + x[2, 1], 4096 * x[3, 2] + x_33 + 16 * x[3, 1] + x[2, 2]]
+    x_vert = (4096 * x[0, :] + 256 * x[1, :] + 16 * x[2, :] + x[3, :]).ravel()
+    x_hor = (4096 * x[:, 0] + 256 * x[:, 1] + 16 * x[:, 2] + x[:, 3]).ravel()
+    x_sq = (4096 * x[:3, :3] + 256 * x[1:, :3] + 16 * x[:3, 1:] + x[1:, 1:]).ravel()
     x_middle = (65536 * x[1: 3, 1: 3] + 4096 * x[:2, 1: 3] + 256 * x[1: 3, :2] + 16 * x[2: 4, 1: 3] + x[1: 3, 2: 4]
                 ).ravel()
-    return x_corners + x_borders + list(x_middle)
+    return np.concatenate([x_vert, x_hor, x_sq, x_middle])
 
 
 def max_tile_in_feature(n):
@@ -89,7 +81,7 @@ def max_tile_in_feature(n):
 class Q_agent:
 
     feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5}
-    parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (16, 16 ** 5)}
+    parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (21, 16 ** 5)}
 
     def __init__(self, name='agent', config_file=None, storage='s3', console='local', reward='basic',
                  decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01):
@@ -123,7 +115,7 @@ class Q_agent:
         self.num_feat, self.size_feat = Q_agent.parameter_shape[self.n]
         self.features = Q_agent.feature_functions[self.n]
         self.top_tile = 10
-        self.max_in_f = max_tile_in_feature(n)
+        self.max_in_f = max_tile_in_feature(self.n)
         self.lr = {v: self.alpha for v in range(16)}
         self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
         self.next_decay = self.decay_step
@@ -131,9 +123,8 @@ class Q_agent:
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
         if self.n == 5:
-            self.weights = (np.random.random((4, 16 ** 3)) / 100).tolist() + \
-                           (np.random.random((8, 16 ** 4)) / 100).tolist() + \
-                           (np.random.random((8, 16 ** 5)) / 100).tolist()
+            self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
+                           (np.random.random((4, 16 ** 5)) / 100).tolist()
         else:
             self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
 
