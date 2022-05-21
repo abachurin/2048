@@ -229,7 +229,7 @@ class Q_agent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    def train_run(self, num_eps=100000, saving=True, chart=False):
+    def train_run(self, num_eps=100000, saving=True):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         global_start = start = time.time()
@@ -285,11 +285,3 @@ class Q_agent:
         if saving:
             self.save_agent()
             self.print(f'agent saved in {self.file}')
-        if chart:
-            self.chart_ma_100(self.train_history)
-
-    @staticmethod
-    def chart_ma_100(ma100):
-        plt.figure(figsize=(8, 6))
-        plt.plot(ma100)
-        plt.show()
