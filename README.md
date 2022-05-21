@@ -91,7 +91,7 @@ Not sure bigger pieces will reveal much more (but i will think about implementin
 
 ### Charts and results
 
-* Model with combinations of 2 adjacent tiles, trained over 10,000 episodes.
+* Model with combinations of 2 adjacent tiles, trained over 20,000 episodes.
 ```
 average over last 1000 episodes = 16300.744
 1024 reached in 73.1 %
@@ -105,10 +105,10 @@ best score = 56776
 4				64				32				2
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/blob/master/score_chart_2_tile.png?raw=true>
+<img src = https://github.com/abachurin/2048/images/score_chart_2_tile.png?raw=true>
 </p>
 
-* Model with combinations of 3 adjacent tiles, trained over 10,000 episodes.
+* Model with combinations of 3 adjacent tiles, trained over 20,000 episodes.
 ```
 average over last 1000 episodes = 32519.164
 1024 reached in 94.9 %
@@ -122,7 +122,7 @@ best score = 80496
 2				4				8				4
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/blob/master/score_chart_3_tile.png?raw=true>
+<img src = https://github.com/abachurin/2048/images/score_chart_3_tile.png?raw=true>
 </p>
 
 * Model with some combinations of 4 adjacent tiles, trained over 100,000 episodes.
