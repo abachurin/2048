@@ -23,14 +23,8 @@ LOCAL = os.environ.get('S3_URL', 'local')
 
 if LOCAL == 'local':
     s3_credentials = CONF['s3_credentials']
-    try:
-        with open(s3_credentials, 'r') as f:
-            df = json.load(f)
-    except Exception:
-        df = {
-            'access_key': 'AKIAZOWBTDJARWJYGXXG',
-            'secret_key': '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'
-        }
+    with open(s3_credentials, 'r') as f:
+        df = json.load(f)
     s3_engine = boto3.resource(
         service_name='s3',
         region_name='eu-west-1',
