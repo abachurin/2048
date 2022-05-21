@@ -5,7 +5,7 @@ from dash.dependencies import ClientsideFunction
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
-from dash_extensions.enrich import DashProxy, MultiplexerTransform, NoOutputTransform, Output, Input, State
+from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
 from dash_extensions import Keyboard
 import plotly.express as px
 
@@ -125,6 +125,7 @@ app.layout = dbc.Container([
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
     dcc.Interval(id='logs_interval', interval=1000, n_intervals=0),
     dbc.Modal([
+        dcc.Loading(html.Div(id='uploading'), type='cube', color='#77b300', parent_className='uploader'),
         dbc.ModalHeader('File Management'),
         dbc.ModalBody([
             dbc.DropdownMenu(id='choose_file_action', label='Action:',
@@ -136,6 +137,7 @@ app.layout = dbc.Container([
         ], className='admin-page-body'),
         dbc.ModalFooter([
             html.Div(id='admin_notification'),
+            dbc.Button('check', id='check_button', n_clicks=0),
             dbc.Button('CLOSE', id='close_admin', n_clicks=0)
         ])
     ], id='admin_page', size='lg', centered=True, contentClassName='admin-page'),
@@ -280,7 +282,7 @@ def admin_act(n, act, name):
                 return my_alert(f'Choose file to delete!', info=True), NUP
         elif act == 'Download':
             if name:
-                temp = name[2:]
+                temp, ext = temp_name(name)
                 s3_bucket.download_file(name, temp)
                 to_send = dcc.send_file(temp)
                 os.remove(temp)
@@ -301,19 +303,19 @@ def show_upload(act):
 
 
 @app.callback(
-    Output('admin_notification', 'children'),
-    Input('data_uploader', 'contents'), Input('data_uploader', 'filename'),
+    Output('admin_notification', 'children'), Output('uploading', 'className'),
+    Input('data_uploader', 'filename'), State('data_uploader', 'contents'),
     State('choose_file', 'value')
 )
-def upload_process(content, name, kind):
+def upload_process(name, content, kind):
     if name:
         file_data = content.encode("utf8").split(b";base64,")[1]
         with open(name, "wb") as f:
             f.write(base64.decodebytes(file_data))
-        prefix = 'c/' if kind == 'config file' else ('g/' if kind == 'game' else '/a')
+        prefix = 'c/' if kind == 'config file' else ('g/' if kind == 'game' else 'a/')
         s3_bucket.upload_file(name, prefix + name)
         os.remove(name)
-        return my_alert(f'Uploaded {name} as new {kind}')
+        return my_alert(f'Uploaded {name} as new {kind}'), NUP
     else:
         raise PreventUpdate
 

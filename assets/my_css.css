@@ -283,6 +283,12 @@
     z-index: 2;
 }
 
+.uploader {
+    position: absolute;
+    top: 175px;
+    z-index: 2;
+}
+
 .lf-params {
     position: absolute;
     top: 46px;

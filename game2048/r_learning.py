@@ -45,9 +45,21 @@ def f_4(x):
 
 
 # Finally, we can try taking as features "every cell + direct neighbours", that is 16 features,
-# but we have quintets for middle cells, hence a lot of weights
+# but we have quintets for middle cells, hence a lot of weights. Problem is - doesn't train far :)
 def f_5(x):
-    pass
+    x_00 = 256 * x[0, 0]
+    x_03 = 256 * x[0, 3]
+    x_30 = 256 * x[3, 0]
+    x_33 = 256 * x[3, 3]
+    x_corners = [x_00 + 16 * x[0, 1] + x[1, 0], x_03 + 16 * x[0, 2] + x[1, 3],
+                 x_30 + 16 * x[3, 1] + x[2, 0], x_33 + 16 * x[3, 2] + x[2, 3]]
+    x_borders = [4096 * x[1, 0] + x_00 + 16 * x[2, 0] + x[1, 1], 4096 * x[2, 0] + x_30 + 16 * x[1, 0] + x[2, 1],
+                 4096 * x[1, 3] + x_03 + 16 * x[2, 3] + x[1, 2], 4096 * x[2, 3] + x_33 + 16 * x[2, 1] + x[2, 2],
+                 4096 * x[0, 1] + x_00 + 16 * x[0, 2] + x[1, 1], 4096 * x[0, 2] + x_03 + 16 * x[0, 1] + x[1, 2],
+                 4096 * x[3, 1] + x_30 + 16 * x[3, 2] + x[2, 1], 4096 * x[3, 2] + x_33 + 16 * x[3, 1] + x[2, 2]]
+    x_middle = (65536 * x[1: 3, 1: 3] + 4096 * x[:2, 1: 3] + 256 * x[1: 3, :2] + 16 * x[2: 4, 1: 3] + x[1: 3, 2: 4]
+                ).ravel()
+    return x_corners + x_borders + list(x_middle)
 
 
 def max_tile_in_feature(n):
@@ -118,7 +130,12 @@ class Q_agent:
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
-        self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
+        if self.n == 5:
+            self.weights = (np.random.random((4, 16 ** 3)) / 100).tolist() + \
+                           (np.random.random((8, 16 ** 4)) / 100).tolist() + \
+                           (np.random.random((8, 16 ** 5)) / 100).tolist()
+        else:
+            self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
 
     def __str__(self):
         return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
@@ -230,8 +247,10 @@ class Q_agent:
     def train_run(self, num_eps=100000, saving=True):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
+        save_steps = 1000 if self.n == 5 else (250 if self.n == 4 else 100)
         global_start = start = time.time()
         self.print(f'Agent {self.name} training session started')
+        self.print(f'Agent will be saved every {save_steps} episodes')
         for i in range(self.step + 1, self.step + num_eps + 2):
 
             # check if it's time to decay learning rate
@@ -259,7 +278,10 @@ class Q_agent:
                 ma = int(np.mean(ma100))
                 self.train_history.append(ma)
                 self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
+            if i % save_steps == 0:
+                t = time.time()
                 self.save_agent()
+                self.print(f'agent saved in {round(time.time() - t, 4)} sec')
             if i % 1000 == 0:
                 average = np.mean(av1000)
                 self.print('\n------')

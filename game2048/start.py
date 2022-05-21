@@ -37,6 +37,11 @@ else:
 s3_bucket = s3_engine.Bucket(s3_bucket_name)
 
 
+def temp_name(name, miss=2):
+    body, ext = name.split('.')
+    return f'{body[miss:]}_{random.randrange(1000000)}.{ext}', ext
+
+
 def list_names_s3():
     return [o.key for o in s3_bucket.objects.all()]
 
@@ -57,8 +62,7 @@ def delete_s3(name):
 def load_s3(name):
     if not name or (not is_data_there(name)):
         return
-    ext = name.split('.')[1]
-    temp = f'temp.{ext}'
+    temp, ext = temp_name(name)
     s3_bucket.download_file(name, temp)
     if ext == 'json':
         with open(temp, 'r', encoding='utf-8') as f:
@@ -76,8 +80,7 @@ def load_s3(name):
 
 
 def save_s3(data, name):
-    ext = name.split('.')[1]
-    temp = f'temp.{ext}'
+    temp, ext = temp_name(name)
     if ext == 'json':
         with open(temp, 'w') as f:
             json.dump(data, f)
