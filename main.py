@@ -26,11 +26,10 @@ act_list = {
     'upload': 'Upload',
     'delete': 'Delete'
 }
-params_list = ['name', 'weights_type', 'reward', 'decay_model', 'n', 'alpha', 'decay', 'decay_step',
+params_list = ['name', 'reward', 'decay_model', 'n', 'alpha', 'decay', 'decay_step',
                'low_alpha_limit', 'Training episodes']
 params_dict = {
     'name': {'element': 'input', 'type': 'text', 'value': 'test_agent', 'disable': False},
-    'weights_type': {'element': 'select', 'value': 'random', 'options': ['random', 'zero'], 'disable': True},
     'reward': {'element': 'select', 'value': 'basic', 'options': ['basic', 'log'], 'disable': True},
     'decay_model': {'element': 'select', 'value': 'simple', 'options': ['simple', 'scaled'], 'disable': True},
     'n': {'element': 'select', 'value': 4, 'options': [2, 3, 4], 'disable': True},

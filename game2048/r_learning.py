@@ -14,23 +14,21 @@ def log_reward(row, score, new_row, new_score):
 
 
 # features = all adjacent pairs
-
-def f_2(X):
-    X_vert = (16 * X[:3, :] + X[1:, :]).ravel()
-    X_hor = (16 * X[:, :3] + X[:, 1:]).ravel()
-    return np.concatenate([X_vert, X_hor])
+def f_2(x):
+    x_vert = (16 * x[:3, :] + x[1:, :]).ravel()
+    x_hor = (16 * x[:, :3] + x[:, 1:]).ravel()
+    return np.concatenate([x_vert, x_hor])
 
 
 # features = all adjacent triples, i.e. 3 in a row + 3 in a any square missing one corner
-
-def f_3(X):
-    X_vert = (256 * X[:2, :] + 16 * X[1:3, :] + X[2:, :]).ravel()
-    X_hor = (256 * X[:, :2] + 16 * X[:, 1:3] + X[:, 2:]).ravel()
-    X_ex_00 = (256 * X[1:, :3] + 16 * X[1:, 1:] + X[:3, 1:]).ravel()
-    X_ex_01 = (256 * X[:3, :3] + 16 * X[1:, :3] + X[1:, 1:]).ravel()
-    X_ex_10 = (256 * X[:3, :3] + 16 * X[:3, 1:] + X[1:, 1:]).ravel()
-    X_ex_11 = (256 * X[:3, :3] + 16 * X[1:, :3] + X[:3, 1:]).ravel()
-    return np.concatenate([X_vert, X_hor, X_ex_00, X_ex_01, X_ex_10, X_ex_11])
+def f_3(x):
+    x_vert = (256 * x[:2, :] + 16 * x[1:3, :] + x[2:, :]).ravel()
+    x_hor = (256 * x[:, :2] + 16 * x[:, 1:3] + x[:, 2:]).ravel()
+    x_ex_00 = (256 * x[1:, :3] + 16 * x[1:, 1:] + x[:3, 1:]).ravel()
+    x_ex_01 = (256 * x[:3, :3] + 16 * x[1:, :3] + x[1:, 1:]).ravel()
+    x_ex_10 = (256 * x[:3, :3] + 16 * x[:3, 1:] + x[1:, 1:]).ravel()
+    x_ex_11 = (256 * x[:3, :3] + 16 * x[1:, :3] + x[:3, 1:]).ravel()
+    return np.concatenate([x_vert, x_hor, x_ex_00, x_ex_01, x_ex_10, x_ex_11])
 
 
 # Initially i also made all adjacent quartets of different shape, but the learning was not happening.
@@ -39,12 +37,17 @@ def f_3(X):
 # but 2) we don't want them to intersect too much (like 3 cells common to two quartets), as they start
 # to kinda suppress and contradict each other.
 # So i left just columns, rows and squares. 17 features all in all. And it works just fine.
+def f_4(x):
+    x_vert = (4096 * x[0, :] + 256 * x[1, :] + 16 * x[2, :] + x[3, :]).ravel()
+    x_hor = (4096 * x[:, 0] + 256 * x[:, 1] + 16 * x[:, 2] + x[:, 3]).ravel()
+    x_sq = (4096 * x[:3, :3] + 256 * x[1:, :3] + 16 * x[:3, 1:] + x[1:, 1:]).ravel()
+    return np.concatenate([x_vert, x_hor, x_sq])
 
-def f_4(X):
-    X_vert = (4096 * X[0, :] + 256 * X[1, :] + 16 * X[2, :] + X[3, :]).ravel()
-    X_hor = (4096 * X[:, 0] + 256 * X[:, 1] + 16 * X[:, 2] + X[:, 3]).ravel()
-    X_sq = (4096 * X[:3, :3] + 256 * X[1:, :3] + 16 * X[:3, 1:] + X[1:, 1:]).ravel()
-    return np.concatenate([X_vert, X_hor, X_sq])
+
+# Finally, we can try taking as features "every cell + direct neighbours", that is 16 features,
+# but we have quintets for middle cells, hence a lot of weights
+def f_5(x):
+    pass
 
 
 def max_tile_in_feature(n):
@@ -73,12 +76,11 @@ def max_tile_in_feature(n):
 
 class Q_agent:
 
-    feature_functions = {2: f_2, 3: f_3, 4: f_4}
-    parameter_shape = {2: (24, 256), 3: (52, 4096), 4: (17, 65536)}
+    feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5}
+    parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (16, 16 ** 5)}
 
-    def __init__(self, name='agent', config_file=None, storage='s3', console='local', weights_type='random',
-                 reward='basic', decay_model='simple', n=4, alpha=0.25, decay=0.75,
-                 decay_step=10000, low_alpha_limit=0.01):
+    def __init__(self, name='agent', config_file=None, storage='s3', console='local', reward='basic',
+                 decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01):
         self.name = name
         self.file = name + '.pkl'
         self.game_file = 'best_of_' + self.file
@@ -90,7 +92,6 @@ class Q_agent:
             config = load_s3(config_file) or {}
         else:
             config = {}
-        self.weights_type = config.get('weights', weights_type)
         self.reward = config.get('reward', reward)
         self.decay_model = config.get('decay_model', decay_model)
         self.n = config.get('n', n)
@@ -117,10 +118,7 @@ class Q_agent:
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
-        if self.weights_type == 'random':
-            self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
-        else:
-            self.weights = [[0] * self.size_feat] * self.num_feat
+        self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
 
     def __str__(self):
         return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
