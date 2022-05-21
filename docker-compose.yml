@@ -1,0 +1,10 @@
+services:
+
+  dash:
+    build: .
+    container_name: game_2048
+    restart: always
+    environment:
+      - APP_NAME=Ola
+    ports:
+      - "5000:5000"

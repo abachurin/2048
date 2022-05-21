@@ -184,6 +184,9 @@ def input_speed():
 
 if __name__ == "__main__":
 
+    a = Q_agent(name='test_5', alpha=0.2, n=4, weights_type='zero')
+    a.train_run(num_eps=10000)
+
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
     # change the speed parameter in ms below if you like
 
