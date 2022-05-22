@@ -31,15 +31,13 @@ if LOCAL == 'local':
         aws_access_key_id=df['access_key'],
         aws_secret_access_key=df['secret_key']
     )
-    s3_bucket_name = 'ab2048'
-    s3_bucket = s3_engine.Bucket(s3_bucket_name)
 elif LOCAL == 'AWS':
-    print('Ola!')
-    s3_bucket_name = None
-    s3_bucket = None
+    s3_engine = boto3.resource('s3')
 else:
-    s3_bucket_name = None
-    s3_bucket = None
+    print('unknown environment')
+    sys.exit()
+s3_bucket_name = 'ab2048'
+s3_bucket = s3_engine.Bucket(s3_bucket_name)
 
 
 def temp_name(name, miss=2):
