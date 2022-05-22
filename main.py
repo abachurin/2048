@@ -586,8 +586,7 @@ def start_training(*args):
 
 # Log window callbacks
 @app.callback(
-    Output('log_file', 'data'), Output('session_tags', 'data'),
-    Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
+    Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
     Input('initiate_logs', 'n_intervals'),
     State('session_tags', 'data'),
 )
@@ -596,7 +595,7 @@ def assign_log_file(n, tags):
         log_file = f'l/logs_{random.randrange(100000)}.txt'
         tag = add_status('log', log_file)
         tags = (tags or []) + [tag]
-        return log_file, [], tags, True
+        return log_file, tags, True
     else:
         raise PreventUpdate
 
