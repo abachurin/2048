@@ -1,12 +1,53 @@
+import datetime
+
 from game2048.dash_utils import *
+
+
+# Several functions that are more convenient to have here because of global/local namespace setup
+def kill_process(proc_name):
+    if proc_name and proc_name in globals():
+        proc = globals()[proc_name]
+        proc.terminate()
+        proc.join()
+        del proc
+    delete_status('proc', proc_name)
+
+
+def kill_chain(chain_name):
+    if chain_name and chain_name in globals():
+        del globals()[chain_name]
+        if chain_name in game_logic.__dict__:
+            del game_logic.__dict__[chain_name]
+
+
+def vacuum_cleaner():
+    while True:
+        status = load_s3('status.json')
+        to_delete = []
+        for v in status:
+            if status[v]:
+                status[v] = 0
+            else:
+                key, value = v.split('*')
+                if key == 'log':
+                    delete_s3(value)
+                elif key == 'proc':
+                    kill_process(value)
+                to_delete.append(v)
+        for v in to_delete:
+            del status[v]
+        save_s3(status, 'status.json')
+        time.sleep(dash_intervals['vc'])
+
 
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 
 app.layout = dbc.Container([
-    dcc.Interval('refresh_status', interval=30000),
-    dcc.Interval(id='initiate_logs', interval=100, n_intervals=0),
+    dcc.Interval(id='refresh_status', interval=CONF['refresh']),
+    dcc.Store(id='session_tags', storage_type='session'),
+    dcc.Interval(id='initiate_logs', interval=CONF['initiate_logs'], n_intervals=0),
     dcc.Store(id='log_file', data=None, storage_type='session'),
     dcc.Store(id='running_now', storage_type='session'),
     dcc.Download(id='download_file'),
@@ -15,7 +56,7 @@ app.layout = dbc.Container([
     dcc.Store(id='current_process', storage_type='session'),
     dcc.Store(id='agent_for_chart', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
-    dcc.Interval(id='logs_interval', interval=1000, n_intervals=0),
+    dcc.Interval(id='logs_interval', interval=CONF['logs'], n_intervals=0),
     dbc.Modal([
         while_loading('uploading', 25),
         dbc.ModalHeader('File Management'),
@@ -65,7 +106,7 @@ app.layout = dbc.Container([
                 ], id='input_group_game', style={'display': 'none'}, className='my-input-group',
             ),
             dbc.InputGroup([
-                while_loading('test_loading', 175),
+                while_loading('test_loading', 225),
                 dbc.InputGroupText('Agent:', className='input-text'),
                 dbc.Select(id='choose_stored_agent', className='input-field'),
                 html.Div([
@@ -141,13 +182,16 @@ app.layout = dbc.Container([
 # refresh status, to keep parallel processes from closing down while the app is open in the browser,
 # script "vacuum_cleaner" is killing them afterwards
 @app.callback(
-    Input('refresh_status', 'disabled'),
-    Input('refresh_status', 'n_intervals')
+    Output('refresh_status', 'disabled'),
+    Input('refresh_status', 'n_intervals'),
+    State('session_tags', 'data')
 )
-def refresh_status(n):
+def refresh_status(n, tags):
+    print(f'refreshed at {datetime.datetime.now()}')
     status = load_s3('status.json')
-    pprint(status)
-    status = {v: 1 for v in status}
+    for v in status:
+        if v in tags:
+            status[v] = 1
     save_s3(status, 'status.json')
     raise PreventUpdate
 
@@ -383,13 +427,13 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
 # Agent Test callbacks
 @app.callback(
     Output('stop_agent', 'style'), Output('current_process', 'data'), Output('running_now', 'data'),
-    Output('test_loader', 'className'),
+    Output('session_tags', 'data'), Output('test_loading', 'className'),
     Input('replay_agent_button', 'n_clicks'),
     State('mode_text', 'children'),  State('current_process', 'data'), State('choose_stored_agent', 'value'),
     State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value'),
-    State('choose_num_eps', 'value'), State('log_file', 'data')
+    State('choose_num_eps', 'value'), State('log_file', 'data'), State('session_tags', 'data')
 )
-def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file):
+def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file, tags):
     if n and mode == 'Test agent':
         kill_process(previous_proc)
         agent = load_s3(agent_file)
@@ -399,9 +443,10 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         proc = f'p_{random.randrange(100000)}'
         save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}', log_file)
         add_status('proc', proc)
+        tags = (tags or []) + [proc]
         globals()[proc] = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
         globals()[proc].start()
-        return {'display': 'block'}, proc, 'testing', NUP
+        return {'display': 'block'}, proc, 'testing', tags, NUP
     else:
         raise PreventUpdate
 
@@ -482,27 +527,29 @@ def fill_params(is_open, agent_name, config_name):
 @app.callback(
     Output('params_notification', 'children'), Output('current_process', 'data'),
     Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'), Output('loading', 'className'),
-    Output('mode_text', 'children'), Output('input_group_train', 'style'), Output('running_now', 'data'),
+    Output('mode_text', 'children'), Output('input_group_train', 'style'),
+    Output('running_now', 'data'), Output('session_tags', 'data'),
     Input('start_training', 'n_clicks'),
     [State(f'par_{e}', 'value') for e in params_list] +
-    [State('choose_train_agent', 'value'), State('current_process', 'data'), State('log_file', 'data')]
+    [State('choose_train_agent', 'value'), State('current_process', 'data'),
+     State('log_file', 'data'), State('session_tags', 'data')]
 )
 def start_training(*args):
     if args[0]:
         message = NUP
-        new_name, new_agent_file, current_process, log_file = args[1], args[-3], args[-2], args[-1]
+        new_name, new_agent_file, current_process, log_file, tags = args[1], args[-4], args[-3], args[-2], args[-1]
         ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
         ui_params['n'] = int(ui_params['n'])
         bad_inputs = [e for e in ui_params if ui_params[e] is None]
         if bad_inputs:
-            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 7
+            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 8
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if name == 'test_agent':
             name = f'test_{random.randrange(100000)}'
         num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
             if f'a/{name}.pkl' in list_names_s3():
-                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 7
+                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 8
             new_config_file = f'c/config_{name}.json'
             save_s3(ui_params, new_config_file)
             message = my_alert(f'new config file {new_config_file[2:]} saved')
@@ -511,7 +558,7 @@ def start_training(*args):
             current = load_s3(new_agent_file)
             if current.name != name:
                 if f'a/{name}.pkl' in list_names_s3():
-                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 7
+                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 8
                 current.name = name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
@@ -520,9 +567,11 @@ def start_training(*args):
         kill_process(current_process)
         current.log_file = log_file
         current.print = Logger(log_file=log_file).add
+        save_s3('', log_file)
         current.save_agent()
         proc = f'p_{random.randrange(100000)}'
         add_status('proc', proc)
+        tags = (tags or []) + [proc]
         globals()[proc] = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         globals()[proc].start()
         if name != new_name:
@@ -530,20 +579,24 @@ def start_training(*args):
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, proc, opts, f'a/{current.file}', NUP, 'Choose:', {'display': 'none'}, 'training'
+        return message, proc, opts, f'a/{current.file}', NUP, 'Choose:', {'display': 'none'}, 'training', tags
     else:
         raise PreventUpdate
 
 
 # Log window callbacks
 @app.callback(
-    Output('log_file', 'data'), Input('initiate_logs', 'disabled'),
-    Input('initiate_logs', 'n_clicks')
+    Output('log_file', 'data'), Output('session_tags', 'data'),
+    Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
+    Input('initiate_logs', 'n_intervals')
 )
 def assign_log_file(n):
-    log_file = f'l/logs_{random.randrange(100000)}.txt'
-    add_status('log', log_file)
-    return log_file, True
+    if n:
+        log_file = f'l/logs_{random.randrange(100000)}.txt'
+        add_status('log', log_file)
+        return log_file, [], [log_file], True
+    else:
+        raise PreventUpdate
 
 
 @app.callback(

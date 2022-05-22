@@ -78,7 +78,7 @@ def my_alert(text, info=False):
 
 
 def dash_send(name):
-    temp, _ = temp_name(name)
+    temp, _ = temp_local_name(name)
     s3_bucket.download_file(name, temp)
     to_send = dcc.send_file(temp)
     os.remove(temp)
@@ -119,35 +119,3 @@ def delete_status(key, value):
     status = load_s3('status.json')
     status.pop(f'{key}*{value}', None)
     save_s3(status, 'status.json')
-
-
-def kill_process(proc_name):
-    if proc_name and proc_name in globals():
-        proc = globals()[proc_name]
-        proc.terminate()
-        proc.join()
-        del proc
-    delete_status('proc', proc_name)
-
-
-def kill_chain(chain_name):
-    if chain_name and chain_name in globals():
-        del globals()[chain_name]
-        if chain_name in game_logic.__dict__:
-            del game_logic.__dict__[chain_name]
-
-
-def vacuum_cleaner():
-    while True:
-        status = load_s3('status.json')
-        for v in status:
-            if status[v]:
-                status[v] = 0
-            else:
-                key, value = v.split('*')
-                if key == 'log':
-                    delete_s3(value)
-                elif key == 'proc':
-                    kill_process(value)
-                del status[v]
-        time.sleep(120)

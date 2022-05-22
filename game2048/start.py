@@ -22,6 +22,7 @@ working_directory = os.path.dirname(os.path.realpath(__file__))
 with open(working_directory + '/config.json', 'r') as f:
     CONF = json.load(f)
 LOCAL = os.environ.get('S3_URL', 'local')
+dash_intervals = CONF['intervals']
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
@@ -42,9 +43,11 @@ else:
     print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 
 
-def temp_name(name, miss=2):
+def temp_local_name(name):
     body, ext = name.split('.')
-    return f'{body[miss:]}_{random.randrange(1000000)}.{ext}', ext
+    if body[1] == '/':
+        body = body[2:]
+    return f'{body}_{random.randrange(1000000)}.{ext}', ext
 
 
 def list_names_s3():
@@ -67,7 +70,7 @@ def delete_s3(name):
 def load_s3(name):
     if not name or (not is_data_there(name)):
         return
-    temp, ext = temp_name(name)
+    temp, ext = temp_local_name(name)
     s3_bucket.download_file(name, temp)
     if ext == 'json':
         with open(temp, 'r', encoding='utf-8') as f:
@@ -85,7 +88,7 @@ def load_s3(name):
 
 
 def save_s3(data, name):
-    temp, ext = temp_name(name)
+    temp, ext = temp_local_name(name)
     if ext == 'json':
         with open(temp, 'w') as f:
             json.dump(data, f)
