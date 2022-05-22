@@ -45,9 +45,9 @@ app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 
 app.layout = dbc.Container([
-    dcc.Interval(id='refresh_status', interval=CONF['refresh']),
+    dcc.Interval(id='refresh_status', interval=dash_intervals['refresh']),
     dcc.Store(id='session_tags', storage_type='session'),
-    dcc.Interval(id='initiate_logs', interval=CONF['initiate_logs'], n_intervals=0),
+    dcc.Interval(id='initiate_logs', interval=dash_intervals['initiate_logs'], n_intervals=0),
     dcc.Store(id='log_file', data=None, storage_type='session'),
     dcc.Store(id='running_now', storage_type='session'),
     dcc.Download(id='download_file'),
@@ -56,7 +56,7 @@ app.layout = dbc.Container([
     dcc.Store(id='current_process', storage_type='session'),
     dcc.Store(id='agent_for_chart', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
-    dcc.Interval(id='logs_interval', interval=CONF['logs'], n_intervals=0),
+    dcc.Interval(id='logs_interval', interval=dash_intervals['logs'], n_intervals=0),
     dbc.Modal([
         while_loading('uploading', 25),
         dbc.ModalHeader('File Management'),
@@ -187,12 +187,12 @@ app.layout = dbc.Container([
     State('session_tags', 'data')
 )
 def refresh_status(n, tags):
-    print(f'refreshed at {datetime.datetime.now()}')
     status = load_s3('status.json')
-    for v in status:
-        if v in tags:
-            status[v] = 1
-    save_s3(status, 'status.json')
+    if tags:
+        for v in status:
+            if v in tags:
+                status[v] = 1
+        save_s3(status, 'status.json')
     raise PreventUpdate
 
 
