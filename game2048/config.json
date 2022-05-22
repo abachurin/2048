@@ -23,6 +23,6 @@
         "refresh": 60000,
         "vc": 900,
         "initiate_logs": 1000,
-        "logs": 1000,
+        "logs": 1000
     }
 }
