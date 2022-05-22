@@ -111,8 +111,10 @@ def params_line(e):
 
 def add_status(key, value):
     status = load_s3('status.json')
-    status[f'{key}*{value}'] = 1
+    full_key = f'{key}*{value}'
+    status[full_key] = 1
     save_s3(status, 'status.json')
+    return full_key
 
 
 def delete_status(key, value):

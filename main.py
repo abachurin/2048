@@ -442,8 +442,8 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
         proc = f'p_{random.randrange(100000)}'
         save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}', log_file)
-        add_status('proc', proc)
-        tags = (tags or []) + [proc]
+        tag = add_status('proc', proc)
+        tags = (tags or []) + [tag]
         globals()[proc] = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
         globals()[proc].start()
         return {'display': 'block'}, proc, 'testing', tags, NUP
@@ -570,8 +570,8 @@ def start_training(*args):
         save_s3('', log_file)
         current.save_agent()
         proc = f'p_{random.randrange(100000)}'
-        add_status('proc', proc)
-        tags = (tags or []) + [proc]
+        tag = add_status('proc', proc)
+        tags = (tags or []) + [tag]
         globals()[proc] = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         globals()[proc].start()
         if name != new_name:
@@ -588,13 +588,15 @@ def start_training(*args):
 @app.callback(
     Output('log_file', 'data'), Output('session_tags', 'data'),
     Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
-    Input('initiate_logs', 'n_intervals')
+    Input('initiate_logs', 'n_intervals'),
+    State('session_tags', 'data'),
 )
-def assign_log_file(n):
+def assign_log_file(n, tags):
     if n:
         log_file = f'l/logs_{random.randrange(100000)}.txt'
-        add_status('log', log_file)
-        return log_file, [], [log_file], True
+        tag = add_status('log', log_file)
+        tags = (tags or []) + [tag]
+        return log_file, [], tags, True
     else:
         raise PreventUpdate
 
