@@ -83,15 +83,18 @@ class Q_agent:
     feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5}
     parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (21, 16 ** 5)}
 
-    def __init__(self, name='agent', config_file=None, storage='s3', console='local', reward='basic',
+    def __init__(self, name='agent', config_file=None, storage='s3', console='local', log_file=None, reward='basic',
                  decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01):
+
+        # basic params
         self.name = name
         self.file = name + '.pkl'
         self.game_file = 'best_of_' + self.file
         self.save_agent = self.save_agent_s3 if storage == 's3' else self.save_agent_local
         self.save_game = self.save_game_s3 if storage == 's3' else self.save_game_local
-        self.print = LOGS.add if console == 'web' else print
+        self.print = print if (console == 'local' or log_file is None) else Logger(log_file=log_file).add
 
+        # params from config file or init/defaults
         if config_file:
             config = load_s3(config_file) or {}
         else:
@@ -104,24 +107,26 @@ class Q_agent:
         self.decay_step = config.get('decay_step', decay_step)
         self.low_alpha_limit = config.get('low_alpha_limit', low_alpha_limit)
 
+        # derived params
         self.R = basic_reward if reward == 'basic' else log_reward
-        self.decay_model = decay_model
         self._upd = self._upd_simple if decay_model == 'simple' else self._upd_scaled
-        self.logs = ''
-        self.step = 0
-        self.top_game = None
-        self.top_score = 0
-        self.train_history = []
         self.num_feat, self.size_feat = Q_agent.parameter_shape[self.n]
         self.features = Q_agent.feature_functions[self.n]
         self.top_tile = 10
         self.max_in_f = max_tile_in_feature(self.n)
         self.lr = {v: self.alpha for v in range(16)}
         self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
+
+        # operational params
+        self.step = 0
+        self.top_game = None
+        self.top_score = 0
+        self.train_history = []
         self.next_decay = self.decay_step
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
+        # Besides, this can lead to blow-up, when some weights promptly go to infinity.
         if self.n == 5:
             self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
                            (np.random.random((4, 16 ** 5)) / 100).tolist()
@@ -217,7 +222,7 @@ class Q_agent:
             self.print({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
             self.print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
         elif self.decay_model == 'simple':
-            self.print(f'episode = {self.step + 1}, current learning rate = {self.alpha}:')
+            self.print(f'episode = {self.step + 1}, current learning rate = {round(self.alpha, 4)}:')
 
     def decay_alpha(self):
         for i in range(16):

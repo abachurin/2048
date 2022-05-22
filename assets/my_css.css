@@ -193,7 +193,7 @@
 .logs-window {
     position: absolute;
     top: 200px;
-    height: calc(100% - 220px);
+    height: calc(100% - 240px);
     width: calc(100% - 20px);
     background: var(--bs-gray-800);
     border-radius: 0.25rem;
@@ -228,7 +228,7 @@
 .logs-display {
     position: absolute;
     top: 46px;
-    height: calc(100% - 56px);
+    height: calc(100% - 76px);
     width: 100%;
     padding: 10px;
     overflow: auto;
@@ -238,6 +238,17 @@
     font-size: 14px;
     line-height: 20px;
     color: #ffb366;
+}
+
+.log-footer {
+    position: absolute;
+    top: calc(100% - 36px);
+    width: 100%;
+    height: 36px;
+    background: var(--bs-yellow);
+    color: black;
+    padding-top: 5px;
+    padding-left: 10px;
 }
 
 .params-page {

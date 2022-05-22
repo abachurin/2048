@@ -4,11 +4,10 @@ from pygame.locals import *
 from game2048.r_learning import *
 
 
-# I took the core of this game visualisation code from someone's github repo several weeks ago
+# I took the core of this game visualisation code from someone's github repo
 # when i started doing this project. I love the simplicity and psychedelic colors.
 # It's a shame i forgot where exactly i got it from. If you are the creator - write me
 # and i will give you the credit in the readme file.
-
 
 class Show:
 
@@ -72,7 +71,6 @@ class Show:
                     self.board.blit(number, (i * 150 + 75 - offset, j * 150 + 160))
 
     # play yourself
-
     def play(self):
         over = False
         while True:
@@ -103,7 +101,6 @@ class Show:
             pygame.display.update()
 
     # replay a game from it's game.history
-
     def replay(self, game_to_show: Game, speed=1000):
         i = 0
         self.game = Game(row=game_to_show.starting_position)
@@ -130,8 +127,7 @@ class Show:
                     sys.exit()
             pygame.display.update()
 
-    # watch an algorithm (estimator parameter) play on-line
-
+    # watch an algorithm play on-line
     def watch(self, estimator, depth=0, width=1, ample=6, game_init=None, speed=500):
         game = game_init or Game()
         for state, move in game.generate_run(estimator=estimator, depth=depth, width=width, ample=ample):

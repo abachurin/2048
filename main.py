@@ -1,126 +1,14 @@
-import dash
-from dash import no_update as NUP
-from dash import dcc, html
-from dash.dependencies import ClientsideFunction
-import dash_daq as daq
-import dash_bootstrap_components as dbc
-from dash.exceptions import PreventUpdate
-from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
-from dash_extensions import Keyboard
-import plotly.express as px
-
-from game2048.r_learning import *
-from game2048 import game_logic
-
-# Some necessary variables and useful functions
-mode_list = {
-    'train_agent_button': ('Train Agent', 'Train agent'),
-    'watch_agent_button': ('Watch Agent play', 'Watch agent'),
-    'agent_stat_button': ('Collect Agent statistics', 'Test agent'),
-    'replay_button': ('Replay game', 'Replay game'),
-    'play_button': ('Play yourself (desktop only)', 'Play'),
-    'open_admin': ('Manage files', 'Admin')
-}
-act_list = {
-    'download': 'Download',
-    'upload': 'Upload',
-    'delete': 'Delete'
-}
-params_list = ['name', 'reward', 'decay_model', 'n', 'alpha', 'decay', 'decay_step',
-               'low_alpha_limit', 'Training episodes']
-params_dict = {
-    'name': {'element': 'input', 'type': 'text', 'value': 'test_agent', 'disable': False},
-    'reward': {'element': 'select', 'value': 'basic', 'options': ['basic', 'log'], 'disable': True},
-    'decay_model': {'element': 'select', 'value': 'simple', 'options': ['simple', 'scaled'], 'disable': True},
-    'n': {'element': 'select', 'value': 4, 'options': [2, 3, 4, 5], 'disable': True},
-    'alpha': {'element': 'input', 'type': 'number', 'value': 0.25, 'step': 0.01, 'disable': False},
-    'decay': {'element': 'input', 'type': 'number', 'value': 0.75, 'step': 0.01, 'disable': False},
-    'decay_step': {'element': 'input', 'type': 'number', 'value': 10000, 'step': 1000, 'disable': False},
-    'low_alpha_limit': {'element': 'input', 'type': 'number', 'value': 0.01, 'step': 0.0025, 'disable': False},
-    'Training episodes': {'element': 'input', 'type': 'number', 'value': 100000, 'step': 1000, 'disable': False},
-}
-keyboard_dict = {
-    'Left': 0,
-    'Up': 1,
-    'Right': 2,
-    'Down': 3
-}
-cell_size = CONF['cell_size']
-x_position = {i: f'{i * cell_size}px' for i in range(4)}
-y_position = {i: f'{i * cell_size + 35}px' for i in range(4)}
-numbers = {i: str(1 << i) if i else '' for i in range(16)}
-colors = CONF['colors']
-colors = {int(v): colors[v] for v in colors}
-
-
-def display_table(row, score, odo, next_move, self_play=False):
-    header = f'Score = {score}    Moves = {odo}    '
-    if next_move == -1:
-        header += 'Game over!'
-    elif not self_play:
-        header += f'Next move = {Game.actions[next_move]}'
-    return dbc.Card([
-        html.H6(header, className='game-header'),
-        dbc.CardBody([html.Div(numbers[row[j, i]], className='cell',
-                               style={'left': x_position[i], 'top': y_position[j], 'background': colors[row[j, i]]})
-                      for j in range(4) for i in range(4)])
-        ], style={'width': '400px'}
-    )
-
-
-def opt_list(l):
-    return [{'label': v, 'value': v} for v in l]
-
-
-def my_alert(text, info=False):
-    return dbc.Alert(f' {text} ', color='info' if info else 'success', dismissable=True, duration=5000,
-                     className='admin-notification')
-
-
-def while_loading(id, top):
-    return dcc.Loading(html.Div(id=id), type='cube', color='#77b300', className='loader', style={'top': f'{top}px'})
-
-
-def params_line(e):
-    data = params_dict[e]
-    if data['element'] == 'input':
-        if 'step' in data:
-            return dbc.InputGroup([
-                dbc.InputGroupText(e, className='par-input-text no-border'),
-                dbc.Input(id=f'par_{e}', type=data['type'], step=data['step'],
-                          className='par-input-field no-border')], className='no-border')
-        else:
-            return dbc.InputGroup([
-                dbc.InputGroupText(e, className='par-input-text no-border'),
-                dbc.Input(id=f'par_{e}', type=data['type'],
-                          className='par-input-field no-border')], className='no-border')
-    else:
-        return dbc.InputGroup([
-            dbc.InputGroupText(e, className='par-input-text no-border'),
-            dbc.Select(id=f'par_{e}', options=opt_list(data['options']),
-                       className='par-select-field no-border')], className='no-border')
-
-
-def kill_process(proc_name):
-    if proc_name and proc_name in globals():
-        proc = globals()[proc_name]
-        proc.terminate()
-        proc.join()
-        del proc
-
-
-def kill_chain(chain_name):
-    if chain_name and chain_name in globals():
-        del globals()[chain_name]
-        if chain_name in game_logic.__dict__:
-            del game_logic.__dict__[chain_name]
-
+from game2048.dash_utils import *
 
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 
 app.layout = dbc.Container([
+    dcc.Interval('refresh_status', interval=30000),
+    dcc.Interval(id='initiate_logs', interval=100, n_intervals=0),
+    dcc.Store(id='log_file', data=None, storage_type='session'),
+    dcc.Store(id='running_now', storage_type='session'),
     dcc.Download(id='download_file'),
     Keyboard(id='keyboard'),
     dcc.Store(id='chain', storage_type='session'),
@@ -177,6 +65,7 @@ app.layout = dbc.Container([
                 ], id='input_group_game', style={'display': 'none'}, className='my-input-group',
             ),
             dbc.InputGroup([
+                while_loading('test_loading', 175),
                 dbc.InputGroupText('Agent:', className='input-text'),
                 dbc.Select(id='choose_stored_agent', className='input-field'),
                 html.Div([
@@ -211,7 +100,8 @@ app.layout = dbc.Container([
                                style={'display': 'none'}),
                     dbc.Button('Download', id='download_logs', n_clicks=0, className='logs-button logs-download'),
                     dbc.Button('Clear', id='clear_logs', n_clicks=0, className='logs-button logs-clear'),
-                    html.Div(id='logs_display', className='logs-display')
+                    html.Div(id='logs_display', className='logs-display'),
+                    html.Div(id='log_footer', className='card-footer log-footer')
                 ], className='logs-window'),
             ], className='log-box'),
         ),
@@ -248,6 +138,20 @@ app.layout = dbc.Container([
 ])
 
 
+# refresh status, to keep parallel processes from closing down while the app is open in the browser,
+# script "vacuum_cleaner" is killing them afterwards
+@app.callback(
+    Input('refresh_status', 'disabled'),
+    Input('refresh_status', 'n_intervals')
+)
+def refresh_status(n):
+    status = load_s3('status.json')
+    pprint(status)
+    status = {v: 1 for v in status}
+    save_s3(status, 'status.json')
+    raise PreventUpdate
+
+
 # admin page callbacks
 @app.callback(
     Output('admin_page', 'is_open'),
@@ -269,7 +173,12 @@ def act_process(*args):
     if not ctx.triggered:
         raise PreventUpdate
     idx = ctx.triggered[0]['prop_id'].split('.')[0]
-    files = ['config file', 'game', 'agent'] if idx == 'upload' else [v for v in list_names_s3() if v != 'logs.txt']
+    if idx == 'upload':
+        files = ['config file', 'game', 'agent']
+    elif idx == 'download':
+        files = list_names_s3()
+    else:
+        files = [v for v in list_names_s3() if v != 'status.json']
     value = 'config file' if idx == 'upload' else None
     return [{'label': v, 'value': v} for v in files], value, act_list[idx]
 
@@ -289,11 +198,7 @@ def admin_act(n, act, name):
                 return my_alert(f'Choose file to delete!', info=True), NUP
         elif act == 'Download':
             if name:
-                temp, ext = temp_name(name)
-                s3_bucket.download_file(name, temp)
-                to_send = dcc.send_file(temp)
-                os.remove(temp)
-                return NUP, to_send
+                return NUP, dash_send(name)
             else:
                 return my_alert(f'Choose file for download!', info=True), NUP
         raise PreventUpdate
@@ -477,24 +382,26 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
 
 # Agent Test callbacks
 @app.callback(
-    Output('stop_agent', 'style'), Output('current_process', 'data'),
+    Output('stop_agent', 'style'), Output('current_process', 'data'), Output('running_now', 'data'),
+    Output('test_loader', 'className'),
     Input('replay_agent_button', 'n_clicks'),
     State('mode_text', 'children'),  State('current_process', 'data'), State('choose_stored_agent', 'value'),
     State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value'),
-    State('choose_num_eps', 'value')
+    State('choose_num_eps', 'value'), State('log_file', 'data')
 )
-def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps):
+def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file):
     if n and mode == 'Test agent':
         kill_process(previous_proc)
         agent = load_s3(agent_file)
         estimator = agent.evaluate
-        params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps,
-                  'console': 'web', 'game_file': 'g/best_of_last_trial.pkl'}
+        params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
+                  'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
         proc = f'p_{random.randrange(100000)}'
-        LOGS.clear(start=f'Trial run for {num_eps} games, Agent = {agent.name}')
+        save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}', log_file)
+        add_status('proc', proc)
         globals()[proc] = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
         globals()[proc].start()
-        return {'display': 'block'}, proc
+        return {'display': 'block'}, proc, 'testing', NUP
     else:
         raise PreventUpdate
 
@@ -575,24 +482,27 @@ def fill_params(is_open, agent_name, config_name):
 @app.callback(
     Output('params_notification', 'children'), Output('current_process', 'data'),
     Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'), Output('loading', 'className'),
-    Output('mode_text', 'children'), Output('input_group_train', 'style'),
+    Output('mode_text', 'children'), Output('input_group_train', 'style'), Output('running_now', 'data'),
     Input('start_training', 'n_clicks'),
     [State(f'par_{e}', 'value') for e in params_list] +
-    [State('choose_train_agent', 'value'), State('current_process', 'data')]
+    [State('choose_train_agent', 'value'), State('current_process', 'data'), State('log_file', 'data')]
 )
 def start_training(*args):
     if args[0]:
         message = NUP
-        new_name, new_agent_file, current_process = args[1], args[-2], args[-1]
+        new_name, new_agent_file, current_process, log_file = args[1], args[-3], args[-2], args[-1]
         ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
         ui_params['n'] = int(ui_params['n'])
         bad_inputs = [e for e in ui_params if ui_params[e] is None]
         if bad_inputs:
-            return my_alert(f'Parameters {bad_inputs} unacceptable', info=True), NUP, NUP, NUP, NUP, NUP, NUP
-        kill_process(current_process)
-        num_eps = ui_params.pop('Training episodes')
+            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 7
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
+        if name == 'test_agent':
+            name = f'test_{random.randrange(100000)}'
+        num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
+            if f'a/{name}.pkl' in list_names_s3():
+                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 7
             new_config_file = f'c/config_{name}.json'
             save_s3(ui_params, new_config_file)
             message = my_alert(f'new config file {new_config_file[2:]} saved')
@@ -600,16 +510,19 @@ def start_training(*args):
         else:
             current = load_s3(new_agent_file)
             if current.name != name:
+                if f'a/{name}.pkl' in list_names_s3():
+                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 7
                 current.name = name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
             for e in ui_params:
                 setattr(current, e, ui_params[e])
-        current.logs = ''
-        current.print = LOGS.add
+        kill_process(current_process)
+        current.log_file = log_file
+        current.print = Logger(log_file=log_file).add
         current.save_agent()
         proc = f'p_{random.randrange(100000)}'
-        LOGS.clear(start='')
+        add_status('proc', proc)
         globals()[proc] = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         globals()[proc].start()
         if name != new_name:
@@ -617,42 +530,71 @@ def start_training(*args):
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, proc, opts, f'a/{current.file}', NUP, 'Choose:', {'display': 'none'}
+        return message, proc, opts, f'a/{current.file}', NUP, 'Choose:', {'display': 'none'}, 'training'
     else:
         raise PreventUpdate
 
 
 # Log window callbacks
 @app.callback(
-    Output('logs_display', 'children'),
-    Input('logs_interval', 'n_intervals')
+    Output('log_file', 'data'), Input('initiate_logs', 'disabled'),
+    Input('initiate_logs', 'n_clicks')
 )
-def update_logs(n):
+def assign_log_file(n):
+    log_file = f'l/logs_{random.randrange(100000)}.txt'
+    add_status('log', log_file)
+    return log_file, True
+
+
+@app.callback(
+    Output('log_footer', 'children'),
+    Input('running_now', 'data')
+)
+def populate_log_footer(data):
+    if data:
+        return Logger.msg[data]
+    else:
+        return Logger.msg['welcome']
+
+
+@app.callback(
+    Output('logs_display', 'children'),
+    Input('logs_interval', 'n_intervals'),
+    State('log_file', 'data')
+)
+def update_logs(n, log_file):
     if n:
-        return LOGS.get()
+        return load_s3(log_file)
     else:
         raise PreventUpdate
 
 
 @app.callback(
     Output('logs_display', 'children'),
-    Input('clear_logs', 'n_clicks')
+    Input('clear_logs', 'n_clicks'),
+    State('log_file', 'data')
 )
-def clear_logs(n):
+def clear_logs(n, log_file):
     if n:
-        LOGS.clear()
-        return NUP
+        save_s3('', log_file)
+        return None
     else:
         raise PreventUpdate
 
 
 @app.callback(
     Output('download_file', 'data'),
-    Input('download_logs', 'n_clicks')
+    Input('download_logs', 'n_clicks'),
+    State('logs_display', 'children'),
 )
-def download_logs(n):
-    if n:
-        return dcc.send_file(LOGS.file)
+def download_logs(n, current_logs):
+    if n and current_logs:
+        temp = f'temp{random.randrange(100000)}.txt'
+        with open(temp, 'w') as f:
+            f.write(current_logs)
+        to_send = dcc.send_file(temp)
+        os.remove(temp)
+        return to_send
     else:
         raise PreventUpdate
 
@@ -661,21 +603,21 @@ def download_logs(n):
     Output('stop_agent', 'style'),
     Input('current_process', 'data'),
 )
-def stop_agent(current_process):
+def enable_stop_agent_button(current_process):
     return {'display': 'block' if current_process else 'none'}
 
 
 @app.callback(
-    Output('current_process', 'data'), Output('stop_agent', 'style'),
+    Output('current_process', 'data'), Output('stop_agent', 'style'), Output('running_now', 'data'),
     Input('stop_agent', 'n_clicks'),
-    State('current_process', 'data'),
+    State('current_process', 'data'), State('log_file', 'data')
 )
-def stop_agent(n, current_process):
+def stop_agent(n, current_process, log_file):
     if n:
-        if current_process:
-            kill_process(current_process)
-            LOGS.add('Process terminated by user')
-        return None, {'display': 'none'}
+        kill_process(current_process)
+        now = load_s3(log_file) or ''
+        save_s3(now + '\n' + Logger.msg['stop'], log_file)
+        return None, {'display': 'none'}, None
     else:
         raise PreventUpdate
 
@@ -844,5 +786,5 @@ app.clientside_callback(
 
 if __name__ == '__main__':
 
-    LOGS.clear()
+    Process(target=vacuum_cleaner, daemon=True).start()
     app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)

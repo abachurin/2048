@@ -147,6 +147,7 @@ class Game:
         self.moves.append(direction)
         return change
 
+    # Run single episode
     def trial_run(self, estimator, limit_tile=0, step_limit=100000, depth=0, width=1, since_empty=0, verbose=False):
         if verbose:
             print('Starting position:')
@@ -174,6 +175,7 @@ class Game:
                 print(f'On {self.odometer} we moved {Game.actions[best_dir]}')
                 print(self)
 
+    # Run game for Dash "Agent Play" mode
     def trial_run_for_thread(self, estimator, depth=0, width=1, since_empty=0, stopper=True):
         while True:
             if stopper not in globals():
@@ -199,8 +201,9 @@ class Game:
             self.new_tile()
 
     def thread_trial(self, *args, **kwargs):
-        Thread(target=self.trial_run_for_thread, args=args, kwargs=kwargs).start()
+        Thread(target=self.trial_run_for_thread, args=args, kwargs=kwargs, daemon=True).start()
 
+    # Run game for show.py
     def generate_run(self, estimator, limit_tile=0, depth=0, width=1, ample=16):
         while True:
             if self.game_over(self.row):
@@ -221,6 +224,7 @@ class Game:
             self.row, self.score = best_row, best_score
             self.new_tile()
 
+    # A kind of Expectimax algo on top of Estimator function, i.e. looking a few moves ahead
     def look_forward(self, estimator, row, score, depth, width, ample):
         if depth == 0:
             return estimator(row, score)
@@ -253,8 +257,8 @@ class Game:
 
     @staticmethod
     def trial(estimator, limit_tile=0, num=20, game_init=None, depth=0, width=1, since_empty=6,
-              storage='s3', console='local', game_file=None, verbose=False):
-        display = print if console == 'local' else LOGS.add
+              storage='s3', console='local', log_file=None, game_file=None, verbose=False):
+        display = print if console == 'local' else Logger(log_file=log_file).add
         start = time.time()
         results = []
         for i in range(num):
@@ -293,7 +297,6 @@ class Game:
         return results
 
     # replay game in text mode, for debugging purposes
-
     def replay(self, verbose=True):
         chain = {}
         state = self.starting_position

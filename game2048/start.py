@@ -1,3 +1,5 @@
+import signal
+
 import numpy as np
 import time
 import sys
@@ -21,6 +23,7 @@ with open(working_directory + '/config.json', 'r') as f:
     CONF = json.load(f)
 LOCAL = os.environ.get('S3_URL', 'local')
 
+s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
     s3_credentials = CONF['s3_credentials']
     with open(s3_credentials, 'r') as f:
@@ -31,13 +34,12 @@ if LOCAL == 'local':
         aws_access_key_id=df['access_key'],
         aws_secret_access_key=df['secret_key']
     )
+    s3_bucket = s3_engine.Bucket(s3_bucket_name)
 elif LOCAL == 'AWS':
     s3_engine = boto3.resource('s3')
+    s3_bucket = s3_engine.Bucket(s3_bucket_name)
 else:
-    print('unknown environment')
-    sys.exit()
-s3_bucket_name = 'ab2048'
-s3_bucket = s3_engine.Bucket(s3_bucket_name)
+    print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 
 
 def temp_name(name, miss=2):
@@ -101,43 +103,19 @@ def save_s3(data, name):
 
 
 class Logger:
+    msg = {
+        'welcome': "Welcome! Let's do something interesting. Choose MODE of action!",
+        'stop': 'Process terminated by user',
+        'training': 'Current process: training agent',
+        'testing': 'Current process: collecting agent statistics'
+    }
 
-    def __init__(self, start="Welcome! Let's do something interesting. Choose MODE of action!"):
-        self.file = 'logs.txt'
-        self.start = start
+    def __init__(self, log_file):
+        self.file = log_file
         if self.file not in list_names_s3():
-            save_s3('Log file created', self.file)
+            save_s3('', self.file)
 
     def add(self, text):
         if text:
-            now = load_s3(self.file)
+            now = load_s3(self.file) or ''
             save_s3(now + '\n' + str(text), self.file)
-
-    def get(self):
-        return load_s3(self.file)
-
-    def clear(self, start=None):
-        start = start or self.start
-        save_s3(start, self.file)
-
-
-class EmptyLogger:
-
-    def __init__(self, start="Welcome! Let's do something interesting. Choose MODE of action!"):
-        pass
-
-    def add(self, text):
-        pass
-
-    def get(self):
-        pass
-
-    def clear(self, start=None):
-        pass
-
-
-
-try:
-    LOGS = Logger()
-except Exception:
-    LOGS = EmptyLogger()
