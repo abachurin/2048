@@ -1,5 +1,4 @@
-import signal
-
+from datetime import datetime
 import numpy as np
 import time
 import sys
@@ -7,13 +6,10 @@ from pprint import pprint
 import random
 import pickle
 import json
-from functools import partial
 from collections import deque
 import os
 import time
 import boto3
-from botocore.errorfactory import ClientError
-from botocore.client import Config
 import base64
 from multiprocessing import Process
 from threading import Thread
@@ -43,11 +39,15 @@ else:
     print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 
 
+def time_suffix():
+    return ''.join([v for v in str(datetime.now()) if v.isnumeric()])[4:]
+
+
 def temp_local_name(name):
     body, ext = name.split('.')
     if body[1] == '/':
         body = body[2:]
-    return f'{body}_{random.randrange(1000000)}.{ext}', ext
+    return f'{body}_{time_suffix()}.{ext}', ext
 
 
 def list_names_s3():

@@ -107,6 +107,7 @@ app.layout = dbc.Container([
             ),
             dbc.InputGroup([
                 while_loading('test_loading', 225),
+                while_loading('agent_play_loading', 225),
                 dbc.InputGroupText('Agent:', className='input-text'),
                 dbc.Select(id='choose_stored_agent', className='input-field'),
                 html.Div([
@@ -323,7 +324,7 @@ def enable_replay_game_button(name):
 def replay_game(name, game_file, previous_chain):
     if name:
         kill_chain(previous_chain)
-        chain = f'g{random.randrange(100000)}'
+        chain = f'g{time_suffix()}'
         game = load_s3(game_file)
         globals()[chain] = {
             'type': 'game',
@@ -353,10 +354,6 @@ def refresh_board(n, chain):
             if step == -1:
                 return NUP, True
             row, score, next_move = point['games'][step]
-            to_show = display_table(row, score, step, next_move)
-            point['step'] = -1 if next_move == -1 else point['step'] + 1
-            return to_show, NUP
-
         # Agent Play
         elif point['type'] == 'agent':
             step, game = point['step'], point['game']
@@ -365,13 +362,13 @@ def refresh_board(n, chain):
             if step == -1:
                 return NUP, True
             row, score, next_move = game.history[step]
-            to_show = display_table(row, score, step, next_move)
-            point['step'] = -1 if next_move == -1 else point['step'] + 1
-            return to_show, NUP
-
         # Play Yourself
         else:
             raise PreventUpdate
+
+        to_show = display_table(row, score, step, next_move)
+        point['step'] = -1 if next_move == -1 else point['step'] + 1
+        return to_show, NUP
     else:
         raise PreventUpdate
 
@@ -400,7 +397,7 @@ def enable_agent_play_button(name):
 
 
 @app.callback(
-    Output('chain', 'data'), Output('update_interval', 'disabled'),
+    Output('chain', 'data'), Output('update_interval', 'disabled'), Output('agent_play_loading', 'className'),
     Input('replay_agent_button', 'n_clicks'),
     State('mode_text', 'children'), State('chain', 'data'), State('choose_stored_agent', 'value'),
     State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value')
@@ -408,7 +405,7 @@ def enable_agent_play_button(name):
 def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
     if n and mode == 'Watch agent':
         kill_chain(previous_chain)
-        chain = f'a{random.randrange(100000)}'
+        chain = f'a{time_suffix()}'
         game_logic.__dict__[chain] = True
         agent = load_s3(agent_file)
         estimator = agent.evaluate
@@ -419,7 +416,7 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
             'step': 0,
         }
         game.thread_trial(estimator, depth=depth, width=width, since_empty=empty, stopper=chain)
-        return chain, False
+        return chain, False, NUP
     else:
         raise PreventUpdate
 
@@ -440,7 +437,7 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         estimator = agent.evaluate
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
-        proc = f'p_{random.randrange(100000)}'
+        proc = f'p{time_suffix()}'
         save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}', log_file)
         tag = add_status('proc', proc)
         tags = (tags or []) + [tag]
@@ -545,7 +542,7 @@ def start_training(*args):
             return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 8
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if name == 'test_agent':
-            name = f'test_{random.randrange(100000)}'
+            name = f'test_{time_suffix()}'
         num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
             if f'a/{name}.pkl' in list_names_s3():
@@ -569,7 +566,7 @@ def start_training(*args):
         current.print = Logger(log_file=log_file).add
         save_s3('', log_file)
         current.save_agent()
-        proc = f'p_{random.randrange(100000)}'
+        proc = f'p{time_suffix()}'
         tag = add_status('proc', proc)
         tags = (tags or []) + [tag]
         globals()[proc] = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
@@ -592,7 +589,7 @@ def start_training(*args):
 )
 def assign_log_file(n, tags):
     if n:
-        log_file = f'l/logs_{random.randrange(100000)}.txt'
+        log_file = f'l/logs_{time_suffix()}.txt'
         tag = add_status('log', log_file)
         tags = (tags or []) + [tag]
         return log_file, tags, True
@@ -643,7 +640,7 @@ def clear_logs(n, log_file):
 )
 def download_logs(n, current_logs):
     if n and current_logs:
-        temp = f'temp{random.randrange(100000)}.txt'
+        temp = f'temp{time_suffix()}.txt'
         with open(temp, 'w') as f:
             f.write(current_logs)
         to_send = dcc.send_file(temp)
@@ -759,7 +756,7 @@ def play_yourself_start(mode, previous_chain):
     if mode:
         if mode == 'Play':
             kill_chain(previous_chain)
-            chain = f'g{random.randrange(100000)}'
+            chain = f'g{time_suffix()}'
             game = Game()
             globals()[chain] = {
                 'type': 'play',
