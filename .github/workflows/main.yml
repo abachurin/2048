@@ -52,7 +52,8 @@ jobs:
 
       - name: create new EBS app version
         run:
-          aws elasticbeanstalk create-application --application-name ${{ env.APP-NAME }} \
+          aws elasticbeanstalk create-application
+          --application-name ${{ env.APP-NAME }} \
           --source-bundle S3Bucket="${{ env.S3-BUCKET }}", S3Key="${{ env.PACKAGE-DEPLOY }}" \
           --version-label "Ver-${{ github.sha }}" \
           --description "CommitSHA-${{ github.sha }}"
