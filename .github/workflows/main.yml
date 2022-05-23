@@ -3,7 +3,7 @@
 
 name: CI-CD-to-AWS-EB
 env:
-  S3-BUCKET: "deploy-ab2048"
+  S3-BUCKET: "deploy2048"
   APP-NAME: "ab2048"
   ENV-NAME: "ab2048"
   PACKAGE-DEPLOY: "app-ab2048-${{ github.sha }}.zip"
@@ -54,7 +54,7 @@ jobs:
         run:
           aws elasticbeanstalk create-application-version
           --application-name ${{ env.APP-NAME }}
-          --source-bundle S3Bucket="${{ env.S3-BUCKET }}", S3Key="${{ env.PACKAGE-DEPLOY }}"
+          --source-bundle S3Bucket="${{ env.S3-BUCKET }}",S3Key="${{ env.PACKAGE-DEPLOY }}"
           --version-label "Ver-${{ github.sha }}"
           --description "CommitSHA-${{ github.sha }}"
 
