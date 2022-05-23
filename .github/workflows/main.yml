@@ -8,7 +8,6 @@ env:
   ENV-NAME: "ab2048"
   PACKAGE-DEPLOY: "app-ab2048-${{ github.sha }}.zip"
   AWS-REGION: "us-east-1"
-  V-LABEL:
 
 on:
   push:
