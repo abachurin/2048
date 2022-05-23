@@ -33,8 +33,8 @@ jobs:
           aws-region: ${{ env.AWS-REGION }}
           
       - name: Copy zip package to S3
-      - run: aws s3 cp ${{ enc.PACKAGE-DEPLOY }} s3://${{ env.S3-BUCKET }}/
+        run: aws s3 cp ${{ enc.PACKAGE-DEPLOY }} s3://${{ env.S3-BUCKET }}/
       
       - name: Message about CI
-      - run: echo "CI pipeline = success"
+        run: echo "CI pipeline = success"
       
