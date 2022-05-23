@@ -1,0 +1,40 @@
+# Continuous deployment to my AWS EB env
+# abachurin, May 23 2022
+
+name: CI-CD-to-AWS-EB
+env:
+  S3-BUCKET: "deploy-ab2048"
+  APP-NAME: "ab2048"
+  ENV-NAME: "ab2048"
+  PACKAGE-DEPLOY: "app-ab2048-${{ github.sha }}.zip"
+  AWS-REGION: "us-east-1"
+
+on:
+  push:
+    branches:
+      - master
+      
+jobs:
+  my-ci:
+    runs-on: ubuntu-latest
+    
+    steps: 
+      - name: Git clone repo
+        uses: actions/checkout@v3
+
+      - name: Create deployment zip package
+        run: zip -r ${{ enc.PACKAGE-DEPLOY }} ./ -x *.git*
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.MYAWSACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.MYAWSSECRET_KEY }}
+          aws-region: ${{ env.AWS-REGION }}
+          
+      - name: Copy zip package to S3
+      - run: aws s3 cp ${{ enc.PACKAGE-DEPLOY }} s3://${{ env.S3-BUCKET }}/
+      
+      - name: Message about CI
+      - run: echo "CI pipeline = success"
+      
