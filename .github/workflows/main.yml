@@ -3,11 +3,11 @@
 
 name: CI-CD-to-AWS-EB
 env:
-  S3-BUCKET: "deploy2048"
-  APP-NAME: "ab2048"
-  ENV-NAME: "ab2048"
-  PACKAGE-DEPLOY: "app-ab2048-${{ github.sha }}.zip"
-  AWS-REGION: "us-east-1"
+  S3-BUCKET: "deplpy-for-2048"
+  APP-NAME: "app-2048"
+  ENV-NAME: "env-2048"
+  PACKAGE-DEPLOY: "app-2048-${{ github.sha }}.zip"
+  AWS-REGION: "eu-west-1"
 
 on:
   push:

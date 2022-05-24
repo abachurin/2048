@@ -1,5 +1,3 @@
-import datetime
-
 from game2048.dash_utils import *
 
 
@@ -43,6 +41,7 @@ def vacuum_cleaner():
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
+application = app.server
 
 app.layout = dbc.Container([
     dcc.Interval(id='refresh_status', interval=dash_intervals['refresh']),
@@ -487,19 +486,30 @@ def open_train_params(agent, config):
 
 
 @app.callback(
-    Output('params_page', 'is_open'),
-    Input('go_to_params', 'n_clicks'), Input('close_params', 'n_clicks'),
-    State('params_page', 'is_open'),
+    Output('params_page', 'is_open'), Output('start_training', 'disabled'),
+    Input('go_to_params', 'n_clicks')
 )
-def toggle_params_page(n1, n2, is_open):
-    if n1 or n2:
-        return not is_open
-    return is_open
+def open_params_page(n):
+    if n:
+        return True, True
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('params_page', 'is_open'),
+    Input('close_params', 'n_clicks'),
+)
+def close_params_page(n):
+    if n:
+        return False
+    else:
+        raise PreventUpdate
 
 
 @app.callback(
     [Output(f'par_{e}', 'disabled') for e in params_list] + [Output(f'par_{e}', 'value') for e in params_list] +
-    [Output('fill_loading', 'className')],
+    [Output('start_training', 'disabled'), Output('fill_loading', 'className')],
     Input('params_page', 'is_open'),
     State('choose_train_agent', 'value'), State('choose_config', 'value'),
 )
@@ -516,14 +526,15 @@ def fill_params(is_open, agent_name, config_name):
         else:
             dis = [False for e in params_list]
             ui_params = [params_dict[e]['value'] for e in params_list]
-        return dis + ui_params + [NUP]
+        return dis + ui_params + [False, NUP]
     else:
         raise PreventUpdate
 
 
 @app.callback(
     Output('params_notification', 'children'), Output('current_process', 'data'),
-    Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'), Output('loading', 'className'),
+    Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'),
+    Output('start_training', 'disabled'), Output('loading', 'className'),
     Output('mode_text', 'children'), Output('input_group_train', 'style'),
     Output('running_now', 'data'), Output('session_tags', 'data'),
     Input('start_training', 'n_clicks'),
@@ -576,7 +587,7 @@ def start_training(*args):
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, proc, opts, f'a/{current.file}', NUP, 'Choose:', {'display': 'none'}, 'training', tags
+        return message, proc, opts, f'a/{current.file}', True, NUP, 'Choose:', {'display': 'none'}, 'training', tags
     else:
         raise PreventUpdate
 
@@ -839,3 +850,4 @@ if __name__ == '__main__':
 
     Process(target=vacuum_cleaner, daemon=True).start()
     app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
