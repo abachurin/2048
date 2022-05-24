@@ -592,98 +592,6 @@ def start_training(*args):
         raise PreventUpdate
 
 
-# Log window callbacks
-@app.callback(
-    Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
-    Input('initiate_logs', 'n_intervals'),
-    State('session_tags', 'data'),
-)
-def assign_log_file(n, tags):
-    if n:
-        log_file = f'l/logs_{time_suffix()}.txt'
-        tag = add_status('log', log_file)
-        tags = (tags or []) + [tag]
-        return log_file, tags, True
-    else:
-        raise PreventUpdate
-
-
-@app.callback(
-    Output('log_footer', 'children'),
-    Input('running_now', 'data')
-)
-def populate_log_footer(data):
-    if data:
-        return Logger.msg[data]
-    else:
-        return Logger.msg['welcome']
-
-
-@app.callback(
-    Output('logs_display', 'children'),
-    Input('logs_interval', 'n_intervals'),
-    State('log_file', 'data')
-)
-def update_logs(n, log_file):
-    if n:
-        return load_s3(log_file)
-    else:
-        raise PreventUpdate
-
-
-@app.callback(
-    Output('logs_display', 'children'),
-    Input('clear_logs', 'n_clicks'),
-    State('log_file', 'data')
-)
-def clear_logs(n, log_file):
-    if n:
-        save_s3('', log_file)
-        return None
-    else:
-        raise PreventUpdate
-
-
-@app.callback(
-    Output('download_file', 'data'),
-    Input('download_logs', 'n_clicks'),
-    State('logs_display', 'children'),
-)
-def download_logs(n, current_logs):
-    if n and current_logs:
-        temp = f'temp{time_suffix()}.txt'
-        with open(temp, 'w') as f:
-            f.write(current_logs)
-        to_send = dcc.send_file(temp)
-        os.remove(temp)
-        return to_send
-    else:
-        raise PreventUpdate
-
-
-@app.callback(
-    Output('stop_agent', 'style'),
-    Input('current_process', 'data'),
-)
-def enable_stop_agent_button(current_process):
-    return {'display': 'block' if current_process else 'none'}
-
-
-@app.callback(
-    Output('current_process', 'data'), Output('stop_agent', 'style'), Output('running_now', 'data'),
-    Input('stop_agent', 'n_clicks'),
-    State('current_process', 'data'), State('log_file', 'data')
-)
-def stop_agent(n, current_process, log_file):
-    if n:
-        kill_process(current_process)
-        now = load_s3(log_file) or ''
-        save_s3(now + '\n' + Logger.msg['stop'], log_file)
-        return None, {'display': 'none'}, None
-    else:
-        raise PreventUpdate
-
-
 # Game Board callbacks
 @app.callback(
     Output('gauge', 'value'), Output('update_interval', 'interval'),
@@ -844,6 +752,100 @@ app.clientside_callback(
     Output('play_instructions', 'className'),
     State('play_instructions', 'id'), Input('play_instructions', 'is_open')
 )
+
+
+# Log window callbacks
+@app.callback(
+    Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
+    Input('initiate_logs', 'n_intervals'),
+    State('session_tags', 'data'),
+)
+def assign_log_file(n, tags):
+    if n:
+        log_file = f'l/logs_{time_suffix()}.txt'
+        tag = add_status('log', log_file)
+        tags = (tags or []) + [tag]
+        return log_file, tags, True
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('log_footer', 'children'),
+    Input('running_now', 'data')
+)
+def populate_log_footer(data):
+    if data:
+        return Logger.msg[data]
+    else:
+        return Logger.msg['welcome']
+
+
+@app.callback(
+    Output('logs_display', 'children'),
+    Input('logs_interval', 'n_intervals'),
+    State('log_file', 'data')
+)
+def update_logs(n, log_file):
+    if n:
+        return load_s3(log_file)
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('logs_display', 'children'),
+    Input('clear_logs', 'n_clicks'),
+    State('log_file', 'data')
+)
+def clear_logs(n, log_file):
+    if n:
+        save_s3('', log_file)
+        return None
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('download_file', 'data'),
+    Input('download_logs', 'n_clicks'),
+    State('logs_display', 'children'),
+)
+def download_logs(n, current_logs):
+    if n and current_logs:
+        temp = f'temp{time_suffix()}.txt'
+        with open(temp, 'w') as f:
+            f.write(current_logs)
+        to_send = dcc.send_file(temp)
+        os.remove(temp)
+        return to_send
+    else:
+        raise PreventUpdate
+
+
+@app.callback(
+    Output('stop_agent', 'style'),
+    Input('current_process', 'data'),
+)
+def enable_stop_agent_button(current_process):
+    return {'display': 'block' if current_process else 'none'}
+
+
+@app.callback(
+    Output('current_process', 'data'), Output('stop_agent', 'style'), Output('running_now', 'data'),
+    Input('stop_agent', 'n_clicks'),
+    State('current_process', 'data'), State('log_file', 'data')
+)
+def stop_agent(n, current_process, log_file):
+    if n:
+        print(current_process)
+        kill_process(current_process)
+        print(f'killed {current_process}')
+        now = load_s3(log_file) or ''
+        save_s3(now + '\n' + Logger.msg['stop'], log_file)
+        return None, {'display': 'none'}, None
+    else:
+        raise PreventUpdate
 
 
 if __name__ == '__main__':
