@@ -3,7 +3,7 @@
 
 name: CI-CD-to-AWS-EB
 env:
-  S3-BUCKET: "deplpy-for-2048"
+  S3-BUCKET: "deploy-for-2048"
   APP-NAME: "app-2048"
   ENV-NAME: "env-2048"
   PACKAGE-DEPLOY: "app-2048-${{ github.sha }}.zip"
