@@ -514,14 +514,14 @@ def start_training(*args):
         ui_params['n'] = int(ui_params['n'])
         bad_inputs = [e for e in ui_params if ui_params[e] is None]
         if bad_inputs:
-            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 8
+            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 9
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if name == 'test_agent':
             name = f'test_{time_suffix()}'
         num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
             if f'a/{name}.pkl' in list_names_s3():
-                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 8
+                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 9
             new_config_file = f'c/config_{name}.json'
             save_s3(ui_params, new_config_file)
             message = my_alert(f'new config file {new_config_file[2:]} saved')
@@ -530,13 +530,13 @@ def start_training(*args):
             current = load_s3(new_agent_file)
             if current.name != name:
                 if f'a/{name}.pkl' in list_names_s3():
-                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 8
+                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 9
                 current.name = name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
             else:
                 if name in load_s3('status.json')['occupied_agents']:
-                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 8
+                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 9
             for e in ui_params:
                 setattr(current, e, ui_params[e])
         kill_process(current_process)
