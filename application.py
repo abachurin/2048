@@ -1,44 +1,4 @@
-import datetime
-
 from game2048.dash_utils import *
-
-
-# Several functions that are more convenient to have here because of global/local namespace setup
-def kill_process(proc_name):
-    if proc_name and proc_name in globals():
-        proc = globals()[proc_name]
-        proc.terminate()
-        proc.join()
-        del proc
-    delete_status('proc', proc_name)
-
-
-def kill_chain(chain_name):
-    if chain_name and chain_name in globals():
-        del globals()[chain_name]
-        if chain_name in game_logic.__dict__:
-            del game_logic.__dict__[chain_name]
-
-
-def vacuum_cleaner():
-    while True:
-        status = load_s3('status.json')
-        to_delete = []
-        for v in status:
-            if status[v]:
-                status[v] = 0
-            else:
-                key, value = v.split('*')
-                if key == 'log':
-                    delete_s3(value)
-                elif key == 'proc':
-                    kill_process(value)
-                to_delete.append(v)
-        for v in to_delete:
-            del status[v]
-        status['last_vc:'] = str(datetime.datetime.now())
-        save_s3(status, 'status.json')
-        time.sleep(dash_intervals['vc'])
 
 
 # App declaration and layout
@@ -190,11 +150,12 @@ app.layout = dbc.Container([
     State('session_tags', 'data')
 )
 def refresh_status(n, tags):
-    status = load_s3('status.json')
-    if tags:
-        for v in status:
-            if v in tags:
-                status[v] = 1
+    if n and tags:
+        status = load_s3('status.json')
+        for key in ('logs', 'proc'):
+            value = tags[key]
+            if value in status[key]:
+                status[key][value]['finish'] = next_time()
         save_s3(status, 'status.json')
     raise PreventUpdate
 
@@ -439,13 +400,13 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         estimator = agent.evaluate
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
-        proc = f'p{time_suffix()}'
         save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}', log_file)
-        tag = add_status('proc', proc)
-        tags = (tags or []) + [tag]
-        globals()[proc] = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
-        globals()[proc].start()
-        return {'display': 'block'}, proc, 'testing', tags, NUP
+        proc = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
+        proc.start()
+        pid = str(proc.pid)
+        add_status('proc', pid)
+        tags['proc'] = pid
+        return {'display': 'block'}, pid, 'testing', tags, NUP
     else:
         raise PreventUpdate
 
@@ -580,17 +541,17 @@ def start_training(*args):
         current.print = Logger(log_file=log_file).add
         save_s3('', log_file)
         current.save_agent()
-        proc = f'p{time_suffix()}'
-        tag = add_status('proc', proc)
-        tags = (tags or []) + [tag]
-        globals()[proc] = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
-        globals()[proc].start()
+        proc = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
+        proc.start()
+        pid = str(proc.pid)
+        add_status('proc', pid)
+        tags['proc'] = pid
         if name != new_name:
             agents = [v for v in list_names_s3() if v[:2] == 'a/']
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, proc, opts, f'a/{current.file}', True, NUP, 'Choose:', {'display': 'none'}, 'training', tags
+        return message, pid, opts, f'a/{current.file}', True, NUP, 'Choose:', {'display': 'none'}, 'training', tags
     else:
         raise PreventUpdate
 
@@ -766,8 +727,10 @@ app.clientside_callback(
 def assign_log_file(n, tags):
     if n:
         log_file = f'l/logs_{time_suffix()}.txt'
-        tag = add_status('log', log_file)
-        tags = (tags or []) + [tag]
+        add_status('logs', log_file)
+        tags = {'logs': log_file, 'proc': 0}
+        parent = str(os.getpid())
+        Process(target=vacuum_cleaner, args=(parent,), daemon=True).start()
         return log_file, tags, True
     else:
         raise PreventUpdate
@@ -851,7 +814,5 @@ def stop_agent(n, current_process, log_file):
 
 if __name__ == '__main__':
 
-    Process(target=vacuum_cleaner, daemon=True).start()
-    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    #application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-
+    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)

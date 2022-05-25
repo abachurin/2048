@@ -20,8 +20,8 @@
         "15": "#000066"
     },
     "intervals": {
-        "refresh": 150000,
-        "vc": 900,
+        "refresh": 60000,
+        "vc": 180,
         "initiate_logs": 1000,
         "logs": 1000
     }

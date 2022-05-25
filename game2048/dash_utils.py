@@ -109,15 +109,8 @@ def params_line(e):
                        className='par-select-field no-border')], className='no-border')
 
 
-def add_status(key, value):
-    status = load_s3('status.json')
-    full_key = f'{key}*{value}'
-    status[full_key] = 1
-    save_s3(status, 'status.json')
-    return full_key
-
-
-def delete_status(key, value):
-    status = load_s3('status.json')
-    status.pop(f'{key}*{value}', None)
-    save_s3(status, 'status.json')
+def kill_chain(chain_name):
+    if chain_name and chain_name in globals():
+        del globals()[chain_name]
+        if chain_name in game_logic.__dict__:
+            del game_logic.__dict__[chain_name]

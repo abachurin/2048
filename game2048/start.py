@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import time
 import sys
@@ -13,12 +13,15 @@ import boto3
 import base64
 from multiprocessing import Process
 from threading import Thread
+import psutil
+from dateutil import parser
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
 with open(working_directory + '/config.json', 'r') as f:
     CONF = json.load(f)
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
+dash_intervals['refresh_sec'] = dash_intervals['refresh'] // 1000
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
@@ -41,6 +44,10 @@ else:
 
 def time_suffix():
     return ''.join([v for v in str(datetime.now()) if v.isnumeric()])[4:]
+
+
+def next_time():
+    return str(datetime.now() + timedelta(seconds=dash_intervals['refresh_sec']))
 
 
 def temp_local_name(name):
@@ -122,3 +129,64 @@ class Logger:
         if text:
             now = load_s3(self.file) or ''
             save_s3(now + '\n' + str(text), self.file)
+
+
+def add_status(key, value):
+    status: dict = load_s3('status.json')
+    status[key][value] = {
+        'parent': str(os.getpid()),
+        'finish': next_time()
+    }
+    save_s3(status, 'status.json')
+
+
+def delete_status(key, value):
+    status = load_s3('status.json')
+    status[key].pop(value, None)
+    save_s3(status, 'status.json')
+
+
+def kill_process(pid, delete=True):
+    if pid and psutil.pid_exists(int(pid)):
+        psutil.Process(int(pid)).kill()
+    if delete:
+        status: dict = load_s3('status.json')
+        status['proc'].pop(pid, None)
+        save_s3(status, 'status.json')
+
+
+def vacuum_cleaner(parent):
+    time.sleep(dash_intervals['vc'])
+    while True:
+        status: dict = load_s3('status.json')
+        my_tags = 0
+        now = datetime.now()
+
+        to_delete = []
+        for value in status['logs']:
+            finish = parser.parse(status['logs'][value]['finish'])
+            if now > finish:
+                delete_s3(value)
+                to_delete.append(value)
+            if status['logs'][value]['parent'] == parent:
+                my_tags += 1
+        for v in to_delete:
+            if v in status['logs']:
+                del status['logs'][v]
+
+        to_delete = []
+        for pid in status['proc']:
+            if status['proc'][pid]['parent'] == parent:
+                my_tags += 1
+                finish = parser.parse(status['proc'][pid]['finish'])
+                if now > finish:
+                    kill_process(pid, delete=False)
+                    to_delete.append(pid)
+        for v in to_delete:
+            if v in status['proc']:
+                del status['proc'][v]
+
+        save_s3(status, 'status.json')
+        if not my_tags:
+            sys.exit()
+        time.sleep(dash_intervals['vc'])
