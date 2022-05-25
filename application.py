@@ -1,3 +1,5 @@
+import datetime
+
 from game2048.dash_utils import *
 
 
@@ -34,6 +36,7 @@ def vacuum_cleaner():
                 to_delete.append(v)
         for v in to_delete:
             del status[v]
+        status['last_vc:'] = str(datetime.datetime.now())
         save_s3(status, 'status.json')
         time.sleep(dash_intervals['vc'])
 
@@ -838,9 +841,7 @@ def enable_stop_agent_button(current_process):
 )
 def stop_agent(n, current_process, log_file):
     if n:
-        print(current_process)
         kill_process(current_process)
-        print(f'killed {current_process}')
         now = load_s3(log_file) or ''
         save_s3(now + '\n' + Logger.msg['stop'], log_file)
         return None, {'display': 'none'}, None
@@ -851,7 +852,6 @@ def stop_agent(n, current_process, log_file):
 if __name__ == '__main__':
 
     Process(target=vacuum_cleaner, daemon=True).start()
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)),
-                    debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    #application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
 
