@@ -406,7 +406,7 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         pid = str(proc.pid)
         add_status('proc', pid)
         tags['proc'] = pid
-        return {'display': 'block'}, pid, 'testing', tags, NUP
+        return {'display': 'block'}, {'pid': pid}, 'testing', tags, NUP
     else:
         raise PreventUpdate
 
@@ -534,12 +534,16 @@ def start_training(*args):
                 current.name = name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
+            else:
+                if name in load_s3('status.json')['occupied_agents']:
+                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 8
             for e in ui_params:
                 setattr(current, e, ui_params[e])
         kill_process(current_process)
         current.log_file = log_file
         current.print = Logger(log_file=log_file).add
         save_s3('', log_file)
+        add_status('agent', name)
         current.save_agent()
         proc = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         proc.start()
@@ -551,7 +555,8 @@ def start_training(*args):
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, pid, opts, f'a/{current.file}', True, NUP, 'Choose:', {'display': 'none'}, 'training', tags
+        return message, {'train': name, 'pid': pid}, opts, f'a/{current.file}', True, NUP, 'Choose:',\
+            {'display': 'none'}, 'training', tags
     else:
         raise PreventUpdate
 
@@ -805,6 +810,8 @@ def enable_stop_agent_button(current_process):
 def stop_agent(n, current_process, log_file):
     if n:
         kill_process(current_process)
+        if current_process and 'train' in current_process:
+            delete_status('agent', current_process['train'])
         now = load_s3(log_file) or ''
         save_s3(now + '\n' + Logger.msg['stop'], log_file)
         return None, {'display': 'none'}, None
@@ -814,5 +821,5 @@ def stop_agent(n, current_process, log_file):
 
 if __name__ == '__main__':
 
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)

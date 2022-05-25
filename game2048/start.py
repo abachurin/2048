@@ -21,7 +21,7 @@ with open(working_directory + '/config.json', 'r') as f:
     CONF = json.load(f)
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
-dash_intervals['refresh_sec'] = dash_intervals['refresh'] // 1000
+dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
@@ -133,20 +133,29 @@ class Logger:
 
 def add_status(key, value):
     status: dict = load_s3('status.json')
-    status[key][value] = {
-        'parent': str(os.getpid()),
-        'finish': next_time()
-    }
+    if key == 'agent':
+        status['occupied_agents'].append(value)
+    else:
+        status[key][value] = {
+            'parent': str(os.getpid()),
+            'finish': next_time()
+        }
     save_s3(status, 'status.json')
 
 
 def delete_status(key, value):
-    status = load_s3('status.json')
-    status[key].pop(value, None)
+    status: dict = load_s3('status.json')
+    if key == 'agent':
+        status['occupied_agents'] = [v for v in status['occupied_agents'] if v != value]
+    else:
+        status[key].pop(value, None)
     save_s3(status, 'status.json')
 
 
-def kill_process(pid, delete=True):
+def kill_process(data, delete=True):
+    if not data:
+        return
+    pid = data['pid']
     if pid and psutil.pid_exists(int(pid)):
         psutil.Process(int(pid)).kill()
     if delete:
@@ -180,7 +189,7 @@ def vacuum_cleaner(parent):
                 my_tags += 1
                 finish = parser.parse(status['proc'][pid]['finish'])
                 if now > finish:
-                    kill_process(pid, delete=False)
+                    kill_process({'pid': pid}, delete=False)
                     to_delete.append(pid)
         for v in to_delete:
             if v in status['proc']:
