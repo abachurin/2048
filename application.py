@@ -115,7 +115,7 @@ app.layout = dbc.Container([
                           'When two equal tiles collide, they combine to give you one '
                           'greater tile that displays their sum. The more you do this, obviously, the higher the '
                           'tiles get and the more crowded the board becomes. Your objective is to reach highest '
-                          'possible score before the board fills up', header='Game instructions  ',
+                          'possible score before the board fills up', header='Game instructions',
                           headerClassName='inst-header', id='play_instructions', dismissable=True, is_open=False),
                 dbc.CardBody(id='game_card'),
                 html.Div([

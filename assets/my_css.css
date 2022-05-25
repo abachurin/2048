@@ -12,7 +12,7 @@
 .log-box {
     padding: 10px;
     height: 89vh;
-    min-width: 420px;
+    min-width: 440px;
 }
 
 .mode-text {
@@ -407,7 +407,7 @@
 }
 
 .inst-header {
-    padding-left: 90px;
+    padding-left: 100px;
     background:  var(--bs-success);
     color: var(--bs-white);
     text-transform: uppercase;

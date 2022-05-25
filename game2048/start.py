@@ -22,6 +22,7 @@ with open(working_directory + '/config.json', 'r') as f:
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
 dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
+dash_intervals['next'] = dash_intervals['refresh'] + 180
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
@@ -47,7 +48,7 @@ def time_suffix():
 
 
 def next_time():
-    return str(datetime.now() + timedelta(seconds=dash_intervals['refresh_sec']))
+    return str(datetime.now() + timedelta(seconds=dash_intervals['next']))
 
 
 def temp_local_name(name):
