@@ -22,7 +22,7 @@ with open(working_directory + '/config.json', 'r') as f:
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
 dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
-dash_intervals['next'] = dash_intervals['refresh'] + 180
+dash_intervals['next'] = dash_intervals['refresh_sec'] + 180
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
