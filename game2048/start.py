@@ -131,6 +131,10 @@ class Logger:
             save_s3(now + '\n' + str(text), self.file)
 
 
+def make_empty_status():
+    save_s3({'logs': {}, 'proc': {}, 'occupied_agents': []}, 'status.json')
+
+
 def add_status(key, value):
     status: dict = load_s3('status.json')
     if key == 'agent':
