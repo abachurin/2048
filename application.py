@@ -536,7 +536,8 @@ def start_training(*args):
                 current.game_file = 'best_of_' + current.file
             else:
                 if name in load_s3('status.json')['occupied_agents']:
-                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 9
+                    pass
+                    # return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 9
             for e in ui_params:
                 setattr(current, e, ui_params[e])
         kill_process(current_process)
