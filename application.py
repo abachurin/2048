@@ -152,7 +152,7 @@ app.layout = dbc.Container([
 def refresh_status(n, tags):
     if n and tags:
         status = load_s3('status.json')
-        for key in ('logs', 'proc'):
+        for key in status:
             value = tags[key]
             if value in status[key]:
                 status[key][value]['finish'] = next_time()
@@ -535,9 +535,8 @@ def start_training(*args):
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
             else:
-                if name in load_s3('status.json')['occupied_agents']:
-                    pass
-                    # return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 9
+                if name in load_s3('status.json')['agent']:
+                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 9
             for e in ui_params:
                 setattr(current, e, ui_params[e])
         kill_process(current_process)
@@ -545,6 +544,7 @@ def start_training(*args):
         current.print = Logger(log_file=log_file).add
         save_s3('', log_file)
         add_status('agent', name)
+        tags['agent'] = name
         current.save_agent()
         proc = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         proc.start()
@@ -568,7 +568,7 @@ def start_training(*args):
     Input('gauge-slider', 'value')
 )
 def update_output(value):
-    return value, value * 200 + 50
+    return value, value * 200 + LOWEST_SPEED
 
 
 @app.callback(
@@ -734,7 +734,7 @@ def assign_log_file(n, tags):
     if n:
         log_file = f'l/logs_{time_suffix()}.txt'
         add_status('logs', log_file)
-        tags = {'logs': log_file, 'proc': 0}
+        tags = {'logs': log_file, 'proc': 0, 'agent': 0}
         parent = str(os.getpid())
         Process(target=vacuum_cleaner, args=(parent,), daemon=True).start()
         return log_file, tags, True
@@ -822,6 +822,6 @@ def stop_agent(n, current_process, log_file):
 
 if __name__ == '__main__':
 
-    # make_empty_status()
+    # make_empty_status(); sys.exit()
     # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
     application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)

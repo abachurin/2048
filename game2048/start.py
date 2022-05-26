@@ -23,6 +23,7 @@ LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
 dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
 dash_intervals['next'] = dash_intervals['refresh_sec'] + 180
+LOWEST_SPEED = 50
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
@@ -39,6 +40,7 @@ if LOCAL == 'local':
 elif LOCAL == 'AWS':
     s3_engine = boto3.resource('s3')
     s3_bucket = s3_engine.Bucket(s3_bucket_name)
+    LOWEST_SPEED = 60
 else:
     print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 
@@ -48,7 +50,7 @@ def time_suffix():
 
 
 def next_time():
-    return str(datetime.now() + timedelta(seconds=dash_intervals['next']))
+    return str(datetime.utcnow() + timedelta(seconds=dash_intervals['next']))
 
 
 def temp_local_name(name):
@@ -138,22 +140,16 @@ def make_empty_status():
 
 def add_status(key, value):
     status: dict = load_s3('status.json')
-    if key == 'agent':
-        status['occupied_agents'].append(value)
-    else:
-        status[key][value] = {
-            'parent': str(os.getpid()),
-            'finish': next_time()
-        }
+    status[key][value] = {
+        'parent': str(os.getpid()),
+        'finish': next_time()
+    }
     save_s3(status, 'status.json')
 
 
 def delete_status(key, value):
     status: dict = load_s3('status.json')
-    if key == 'agent':
-        status['occupied_agents'] = [v for v in status['occupied_agents'] if v != value]
-    else:
-        status[key].pop(value, None)
+    status[key].pop(value, None)
     save_s3(status, 'status.json')
 
 
@@ -174,31 +170,23 @@ def vacuum_cleaner(parent):
     while True:
         status: dict = load_s3('status.json')
         my_tags = 0
-        now = datetime.now()
+        now = datetime.utcnow()
 
-        to_delete = []
-        for value in status['logs']:
-            finish = parser.parse(status['logs'][value]['finish'])
-            if now > finish:
-                delete_s3(value)
-                to_delete.append(value)
-            if status['logs'][value]['parent'] == parent:
-                my_tags += 1
-        for v in to_delete:
-            if v in status['logs']:
-                del status['logs'][v]
-
-        to_delete = []
-        for pid in status['proc']:
-            if status['proc'][pid]['parent'] == parent:
-                my_tags += 1
-                finish = parser.parse(status['proc'][pid]['finish'])
+        for key in ('logs', 'proc'):
+            to_delete = []
+            for value in status[key]:
+                finish = parser.parse(status[key][value]['finish'])
+                if status[key][value]['parent'] == parent:
+                    my_tags += 1
                 if now > finish:
-                    kill_process({'pid': pid}, delete=False)
-                    to_delete.append(pid)
-        for v in to_delete:
-            if v in status['proc']:
-                del status['proc'][v]
+                    if key == 'logs':
+                        delete_s3(value)
+                    elif key == 'proc' and status[key][value]['parent'] == parent:
+                        kill_process({'pid': value}, delete=False)
+                    to_delete.append(value)
+            for v in to_delete:
+                if v in status[key]:
+                    del status[key][v]
 
         save_s3(status, 'status.json')
         if not my_tags:
