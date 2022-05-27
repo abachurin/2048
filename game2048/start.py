@@ -40,7 +40,7 @@ if LOCAL == 'local':
 elif LOCAL == 'AWS':
     s3_engine = boto3.resource('s3')
     s3_bucket = s3_engine.Bucket(s3_bucket_name)
-    LOWEST_SPEED = 60
+    LOWEST_SPEED = 75
 else:
     print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 
@@ -171,8 +171,6 @@ def vacuum_cleaner(parent):
         status: dict = load_s3('status.json')
         my_tags = 0
         now = datetime.utcnow()
-        pprint(status)
-        print(now)
 
         for key in status:
             to_delete = []
@@ -186,11 +184,9 @@ def vacuum_cleaner(parent):
                     elif key == 'proc' and status[key][value]['parent'] == parent:
                         kill_process({'pid': value}, delete=False)
                     to_delete.append(value)
-            print(key, to_delete)
             for v in to_delete:
                 if v in status[key]:
                     del status[key][v]
-        pprint(status)
 
         save_s3(status, 'status.json')
         if not my_tags:

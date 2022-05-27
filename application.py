@@ -64,7 +64,8 @@ app.layout = dbc.Container([
             dbc.InputGroup([
                 dbc.InputGroupText('Game:', className='input-text'),
                 dbc.Select(id='choose_for_replay', className='input-field'),
-                dbc.Button('REPLAY', id='replay_game_button', disabled=True, className='replay-game')
+                html.A(dbc.Button('REPLAY', id='replay_game_button', disabled=True, className='replay-game'),
+                       href='#gauge_group'),
                 ], id='input_group_game', style={'display': 'none'}, className='my-input-group',
             ),
             dbc.InputGroup([
