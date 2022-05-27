@@ -405,7 +405,7 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         proc = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
         proc.start()
         pid = str(proc.pid)
-        add_status('proc', pid)
+        add_status('proc', pid, tags['parent'])
         tags['proc'] = pid
         return {'display': 'block'}, {'pid': pid}, 'testing', tags, NUP
     else:
@@ -544,13 +544,13 @@ def start_training(*args):
         current.log_file = log_file
         current.print = Logger(log_file=log_file).add
         save_s3('', log_file)
-        add_status('agent', name)
+        add_status('agent', name, tags['parent'])
         tags['agent'] = name
         current.save_agent()
         proc = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         proc.start()
-        pid = str(proc.pid)
-        add_status('proc', pid)
+        pid = f'{proc.pid}'
+        add_status('proc', pid, tags['parent'])
         tags['proc'] = pid
         if name != new_name:
             agents = [v for v in list_names_s3() if v[:2] == 'a/']
@@ -718,25 +718,17 @@ def restart_play(n, chain):
         raise PreventUpdate
 
 
-app.clientside_callback(
-    ClientsideFunction(namespace='clientside', function_name='make_draggable'),
-    Output('play_instructions', 'className'),
-    State('play_instructions', 'id'), Input('play_instructions', 'is_open')
-)
-
-
 # Log window callbacks
 @app.callback(
     Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
-    Input('initiate_logs', 'n_intervals'),
-    State('session_tags', 'data'),
+    Input('initiate_logs', 'n_intervals')
 )
-def assign_log_file(n, tags):
+def assign_log_file(n):
     if n:
         log_file = f'l/logs_{time_suffix()}.txt'
-        add_status('logs', log_file)
-        tags = {'logs': log_file, 'proc': 0, 'agent': 0}
-        parent = str(os.getpid())
+        parent = f'{os.getpid()}_{time_suffix()}'
+        tags = {'parent': parent, 'logs': log_file, 'proc': 0, 'agent': 0}
+        add_status('logs', log_file, tags['parent'])
         Process(target=vacuum_cleaner, args=(parent,), daemon=True).start()
         return log_file, tags, True
     else:
@@ -821,9 +813,15 @@ def stop_agent(n, current_process, log_file):
         raise PreventUpdate
 
 
+app.clientside_callback(
+    ClientsideFunction(namespace='clientside', function_name='make_draggable'),
+    Output('play_instructions', 'className'),
+    State('play_instructions', 'id'), Input('play_instructions', 'is_open')
+)
+
+
 if __name__ == '__main__':
 
     # make_empty_status(); sys.exit()
     # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
     application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-
