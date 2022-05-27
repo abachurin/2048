@@ -138,10 +138,10 @@ def make_empty_status():
     save_s3({'logs': {}, 'proc': {}, 'occupied_agents': []}, 'status.json')
 
 
-def add_status(key, value):
+def add_status(key, value, parent):
     status: dict = load_s3('status.json')
     status[key][value] = {
-        'parent': str(os.getpid()),
+        'parent': parent,
         'finish': next_time()
     }
     save_s3(status, 'status.json')
