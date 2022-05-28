@@ -760,6 +760,7 @@ def restart_play(n, chain):
 # Log window callbacks
 @app.callback(
     Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
+    Output('description_button', 'n_clicks'),
     Input('initiate_logs', 'n_intervals')
 )
 def assign_log_file(n):
@@ -769,7 +770,7 @@ def assign_log_file(n):
         tags = {'parent': parent, 'logs': log_file, 'proc': 0, 'agent': 0}
         add_status('logs', log_file, tags['parent'])
         Process(target=vacuum_cleaner, args=(parent,), daemon=True).start()
-        return log_file, tags, True
+        return log_file, tags, True, 1
     else:
         raise PreventUpdate
 
@@ -864,3 +865,4 @@ if __name__ == '__main__':
     # make_empty_status(); sys.exit()
     # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
     application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+
