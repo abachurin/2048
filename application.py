@@ -451,7 +451,8 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         estimator = agent.evaluate
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
-        save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}', log_file)
+        save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}\n'
+                f'Looking forward: depth={depth}, width={width}, since_empty={empty}', log_file)
         proc = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
         proc.start()
         pid = str(proc.pid)

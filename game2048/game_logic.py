@@ -241,7 +241,8 @@ class Game:
             new_row = row.copy()
             new_row[position] = new_tile
             if self.game_over(new_row):
-                best_value = estimator(row, score)
+                # best_value = estimator(row, score)
+                best_value = 0
             else:
                 best_value = - np.inf
                 for direction in range(4):

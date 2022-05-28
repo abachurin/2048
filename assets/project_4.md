@@ -1,4 +1,4 @@
-* Model that combines my best RL Agent A5 with my version of Expectimax with `depth=3, width=4, ample=6` look-forward parameters
+* Model that combines my best RL Agent A5 with my version of Expectimax with `depth=3, width=4, since_empty=6` look-forward parameters
 The results:
 ```
 Best game =
