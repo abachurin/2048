@@ -89,7 +89,7 @@ best score = 56776
 4				64				32				2
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/blob/master/images/score_chart_2_tile.png?raw=true>
+<img src="score_chart_2_tile.png" alt="sorry, chart is not here right now">
 </p>
 
 * Model with combinations of 3 adjacent tiles, trained over 20,000 episodes.
@@ -106,10 +106,10 @@ best score = 80496
 2				4				8				4
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/blob/master/images/score_chart_3_tile.png?raw=true>
+<img src="score_chart_3_tile.png" alt="sorry, chart is not here right now">
 </p>
 
-* Model with some combinations of 4 adjacent tiles, trained over 100,000 episodes.
+* Model with some combinations of 4 adjacent tiles + several 5-tile features, trained over 100,000 episodes.
 / I wrote in the comments in `rl_learning.py` how i tried all 4-combinations at the start but it didn't work. /
 ```
 average over last 1000 episodes = 44422.796
@@ -124,24 +124,10 @@ best score = 130664
 2				16				128				32
 ```
 <p align = "center">
-<img src = https://github.com/abachurin/2048/blob/master/score_chart_4_tile.png?raw=true>
+<img src="score_chart_5_tile.png" alt="sorry, chart is not here right now">
 </p>
 
-* Model that combines my best RL Agent with my version of Expectimax.
-In my code that would be:
-```
-from game2048.rl_learning import *
-agent = Q_agent.load_agent("best_agent.npy")
-eval = agent.evaluate
-
-def mix_eval(game):
-    if game.empty_count() > 6:
-        return eval(game)
-    else:
-        return estimator_lf(depth=3, width=4, evaluator=eval)(game)
-
-Game.trial(mix_eval, num=100)
-```
+* Model that combines my best RL Agent A5 with my version of Expectimax with `depth=3, width=4, ample=6` look-forward parameters
 The results:
 ```
 Best game =
