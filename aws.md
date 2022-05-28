@@ -1,3 +1,5 @@
+The below is a useful instruction i wrote for another client for another project. Will keep it here just in case.
+
 ### Running the Bot in AWS
 
 You can find current public IP address at EC2 instance page in AWS. Use **http**, without "s", to access it. The EC2 instance is usually permanently open, so the address doesn't change. If it fails/stops/not working for any reason - you have to retrace the Deplyment steps (described below) from some point, then check the new public IP address.

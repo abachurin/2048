@@ -1,10 +1,12 @@
 from game2048.dash_utils import *
 
 dash_directory = os.path.dirname(os.path.realpath(__file__))
-with open(os.path.join(dash_directory, 'assets', 'README.md'), 'r') as f:
-    project_description = f.read()
 with open(os.path.join(dash_directory, 'assets', 'user_guide.md'), 'r') as f:
     interface_description = f.read()
+project_description = {}
+for i in (1, 2, 3, 4):
+    with open(os.path.join(dash_directory, 'assets', f'project_{i}.md'), 'r') as f:
+        project_description[i] = f.read()
 
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
@@ -184,9 +186,18 @@ def toggle_guide_page(n):
     Output('guide_page_body', 'children'),
     Input('guide_project_button', 'n_clicks'),
 )
-def project_description(n):
+def show_project_description(n):
     if n:
-        return dcc.Markdown(project_description, link_target='_blanc', className='md_content')
+        print(project_description)
+        return [
+            dcc.Markdown(project_description[1], link_target='_blanc', className='md_content'),
+            html.Img(src=app.get_asset_url('score_chart_2_tile.png')),
+            dcc.Markdown(project_description[2], link_target='_blanc', className='md_content'),
+            html.Img(src=app.get_asset_url('score_chart_3_tile.png')),
+            dcc.Markdown(project_description[3], link_target='_blanc', className='md_content'),
+            html.Img(src=app.get_asset_url('score_chart_5_tile.png')),
+            dcc.Markdown(project_description[4], link_target='_blanc', className='md_content')
+        ]
     else:
         raise PreventUpdate
 
@@ -196,8 +207,8 @@ def project_description(n):
     Output('guide_page_body', 'children'),
     Input('guide_ui_button', 'n_clicks'),
 )
-def ui_description(n):
-    return dcc.Markdown(interface_description, link_target='_blanc', className='md_content')
+def show_ui_description(n):
+    return dcc.Markdown(interface_description, dedent=False, link_target='_blanc', className='md_content')
 
 
 # admin page callbacks

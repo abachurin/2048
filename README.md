@@ -89,7 +89,7 @@ best score = 56776
 4				64				32				2
 ```
 <p align = "center">
-<img src="score_chart_2_tile.png" alt="sorry, chart is not here right now">
+<img src = https://github.com/abachurin/2048/blob/master/assets/score_chart_2_tile.png?raw=true>
 </p>
 
 * Model with combinations of 3 adjacent tiles, trained over 20,000 episodes.
@@ -106,7 +106,7 @@ best score = 80496
 2				4				8				4
 ```
 <p align = "center">
-<img src="score_chart_3_tile.png" alt="sorry, chart is not here right now">
+<img src = https://github.com/abachurin/2048/blob/master/assets/score_chart_3_tile.png?raw=true>
 </p>
 
 * Model with some combinations of 4 adjacent tiles + several 5-tile features, trained over 100,000 episodes.
@@ -124,7 +124,7 @@ best score = 130664
 2				16				128				32
 ```
 <p align = "center">
-<img src="score_chart_5_tile.png" alt="sorry, chart is not here right now">
+<img src = https://github.com/abachurin/2048/blob/master/assets/score_chart_5_tile.png?raw=true>
 </p>
 
 * Model that combines my best RL Agent A5 with my version of Expectimax with `depth=3, width=4, ample=6` look-forward parameters
