@@ -1,5 +1,10 @@
 from game2048.dash_utils import *
 
+dash_directory = os.path.dirname(os.path.realpath(__file__))
+with open(os.path.join(dash_directory, 'README.md'), 'r') as f:
+    project_description = f.read()
+with open(os.path.join(dash_directory, 'user_guide.md'), 'r') as f:
+    interface_description = f.read()
 
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
@@ -19,6 +24,11 @@ app.layout = dbc.Container([
     dcc.Store(id='agent_for_chart', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
     dcc.Interval(id='logs_interval', interval=dash_intervals['logs'], n_intervals=0),
+    dbc.Modal([
+        dbc.ModalHeader([
+            dbc.ButtonGroup([dbc.Button('User interface guide', id='guide_ui_button', color='info'),
+                             dbc.Button('RL project description', id='guide_project_button')])]),
+        dbc.ModalBody(id='guide_page_body')], id='guide_page', size='xl', centered=True, contentClassName='guide-page'),
     dbc.Modal([
         while_loading('uploading', 25),
         dbc.ModalHeader('File Management'),
@@ -159,6 +169,35 @@ def refresh_status(n, tags):
                 status[key][value]['finish'] = next_time()
         save_s3(status, 'status.json')
     raise PreventUpdate
+
+
+# Project description callbacks
+@app.callback(
+    Output('guide_page', 'is_open'),
+    Input('description_button', 'n_clicks'),
+)
+def toggle_guide_page(n):
+    return bool(n)
+
+
+@app.callback(
+    Output('guide_page_body', 'children'),
+    Input('guide_project_button', 'n_clicks'),
+)
+def show_project_description(n):
+    if n:
+        return dcc.Markdown(project_description, link_target='_blanc', className='md_content')
+    else:
+        raise PreventUpdate
+
+
+# Project description callbacks
+@app.callback(
+    Output('guide_page_body', 'children'),
+    Input('guide_ui_button', 'n_clicks'),
+)
+def show_project_description(n):
+    return dcc.Markdown(interface_description, link_target='_blanc', className='md_content')
 
 
 # admin page callbacks
@@ -367,7 +406,7 @@ def enable_agent_play_button(name):
     State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value')
 )
 def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
-    if n and mode == 'Watch agent':
+    if n and mode == 'Watch Agent':
         kill_chain(previous_chain)
         chain = f'a{time_suffix()}'
         game_logic.__dict__[chain] = True
@@ -395,7 +434,7 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
     State('choose_num_eps', 'value'), State('log_file', 'data'), State('session_tags', 'data')
 )
 def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file, tags):
-    if n and mode == 'Test agent':
+    if n and mode == 'Test Agent':
         kill_process(previous_proc)
         agent = load_s3(agent_file)
         estimator = agent.evaluate
