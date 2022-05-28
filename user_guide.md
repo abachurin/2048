@@ -10,4 +10,4 @@
 * ##### Replay Game
     Replays a chosen Game from Storage. Any Agent saves a currently best game during training, also the best game of the latest Statistics Collection is saved.
 * ##### Play Yourself
-    Of course, it is more convenient to use a standard mobile 2048 App to play the game. I made this option to practice using Keyboard component + writing some custom javascript (`Play Instructions` window is draggable thanks to that).
+    Of course, it is more convenient to use a standard mobile 2048 App to play the game. I made this option to practice using Keyboard component + writing some custom javascript (`Game Instructions` window is draggable thanks to that).

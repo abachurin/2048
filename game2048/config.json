@@ -22,7 +22,7 @@
     "intervals": {
         "refresh_sec": 60,
         "vc": 300,
-        "initiate_logs": 1000,
+        "initiate_logs": 500,
         "logs": 1000
     }
 }

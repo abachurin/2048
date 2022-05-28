@@ -15,7 +15,6 @@ from multiprocessing import Process
 from threading import Thread
 import psutil
 from dateutil import parser
-from markdown import markdown
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(working_directory, 'config.json'), 'r') as f:
