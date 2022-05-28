@@ -34,8 +34,7 @@
     top: 56px;
 }
 
-.admin-page-content {
-    background: var(--bs-gray-700);
+.admin-page {
     min-width: 420px;
 }
 
@@ -454,4 +453,12 @@
     width: 200px;
     left: calc(50% - 100px);
     top: 220px;
+}
+
+.guide-page {
+    min-width: 420px;
+}
+
+.md_content {
+    white-space: wrap;
 }

@@ -14,13 +14,13 @@ from . import game_logic
 
 # Some necessary variables and useful functions
 mode_list = {
-    'description_button': ('Project description', 'Description'),
-    'train_agent_button': ('Train Agent', 'Train agent'),
-    'watch_agent_button': ('Watch Agent play', 'Watch agent'),
-    'agent_stat_button': ('Collect Agent statistics', 'Test agent'),
-    'replay_button': ('Replay game', 'Replay game'),
-    'play_button': ('Play yourself (desktop only)', 'Play'),
-    'open_admin': ('Manage files', 'Admin')
+    'description_button': ('HELP!', 'Guide'),
+    'train_agent_button': ('Train Agent', 'Train Agent'),
+    'agent_stat_button': ('Collect Agent Statistics', 'Test Agent'),
+    'watch_agent_button': ('Watch Agent Play', 'Watch Agent'),
+    'replay_button': ('Replay Game', 'Replay Game'),
+    'play_button': ('Play Yourself', 'Play'),
+    'open_admin': ('Manage Files', 'Admin')
 }
 act_list = {
     'download': 'Download',
@@ -84,6 +84,12 @@ def dash_send(name):
     to_send = dcc.send_file(temp)
     os.remove(temp)
     return to_send
+
+
+def markdown_text(md_file):
+    with open(md_file, 'r') as f:
+        return f.read()
+
 
 
 def while_loading(id, top):
