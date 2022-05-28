@@ -1,5 +1,9 @@
 from game2048.dash_utils import *
 
+with open(os.path.join(working_directory, 'README.md'), 'r') as f:
+    project_description = markdown(f.read())
+with open(os.path.join(working_directory, 'assets', 'user_guide.md'), 'r') as f:
+    interface_description = markdown(f.read())
 
 # App declaration and layout
 app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
@@ -160,6 +164,8 @@ def refresh_status(n, tags):
         save_s3(status, 'status.json')
     raise PreventUpdate
 
+
+# Project description callbacks
 
 # admin page callbacks
 @app.callback(
@@ -823,5 +829,7 @@ app.clientside_callback(
 if __name__ == '__main__':
 
     # make_empty_status(); sys.exit()
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'),
+                   use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'),
+    # use_reloader=False)

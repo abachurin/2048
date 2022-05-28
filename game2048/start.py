@@ -15,15 +15,17 @@ from multiprocessing import Process
 from threading import Thread
 import psutil
 from dateutil import parser
+from markdown import markdown
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
-with open(working_directory + '/config.json', 'r') as f:
+with open(os.path.join(working_directory, 'config.json'), 'r') as f:
     CONF = json.load(f)
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
 dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
 dash_intervals['next'] = dash_intervals['refresh_sec'] + 180
 LOWEST_SPEED = 50
+
 
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
@@ -115,25 +117,6 @@ def save_s3(data, name):
     return 1
 
 
-class Logger:
-    msg = {
-        'welcome': "Welcome! Let's do something interesting. Choose MODE of action!",
-        'stop': 'Process terminated by user',
-        'training': 'Current process: training agent',
-        'testing': 'Current process: collecting agent statistics'
-    }
-
-    def __init__(self, log_file):
-        self.file = log_file
-        if self.file not in list_names_s3():
-            save_s3('', self.file)
-
-    def add(self, text):
-        if text:
-            now = load_s3(self.file) or ''
-            save_s3(now + '\n' + str(text), self.file)
-
-
 def make_empty_status():
     save_s3({'logs': {}, 'proc': {}, 'occupied_agents': []}, 'status.json')
 
@@ -192,3 +175,22 @@ def vacuum_cleaner(parent):
         if not my_tags:
             sys.exit()
         time.sleep(dash_intervals['vc'])
+
+
+class Logger:
+    msg = {
+        'welcome': "Welcome! Let's do something interesting. Choose MODE of action!",
+        'stop': 'Process terminated by user',
+        'training': 'Current process: training agent',
+        'testing': 'Current process: collecting agent statistics'
+    }
+
+    def __init__(self, log_file):
+        self.file = log_file
+        if self.file not in list_names_s3():
+            save_s3('', self.file)
+
+    def add(self, text):
+        if text:
+            now = load_s3(self.file) or ''
+            save_s3(now + '\n' + str(text), self.file)

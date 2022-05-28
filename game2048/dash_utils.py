@@ -14,6 +14,7 @@ from . import game_logic
 
 # Some necessary variables and useful functions
 mode_list = {
+    'description_button': ('Project description', 'Description'),
     'train_agent_button': ('Train Agent', 'Train agent'),
     'watch_agent_button': ('Watch Agent play', 'Watch agent'),
     'agent_stat_button': ('Collect Agent statistics', 'Test agent'),
