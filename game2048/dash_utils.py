@@ -34,7 +34,7 @@ params_dict = {
     'reward': {'element': 'select', 'value': 'basic', 'options': ['basic', 'log'], 'disable': True},
     'decay_model': {'element': 'select', 'value': 'simple', 'options': ['simple', 'scaled'], 'disable': True},
     'n': {'element': 'select', 'value': 4, 'options': [2, 3, 4, 5], 'disable': True},
-    'alpha': {'element': 'input', 'type': 'number', 'value': 0.25, 'step': 0.001, 'disable': False},
+    'alpha': {'element': 'input', 'type': 'number', 'value': 0.25, 'step': 0.0001, 'disable': False},
     'decay': {'element': 'input', 'type': 'number', 'value': 0.75, 'step': 0.01, 'disable': False},
     'decay_step': {'element': 'input', 'type': 'number', 'value': 10000, 'step': 1000, 'disable': False},
     'low_alpha_limit': {'element': 'input', 'type': 'number', 'value': 0.01, 'step': 0.0025, 'disable': False},

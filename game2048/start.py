@@ -47,7 +47,7 @@ else:
 
 
 def time_suffix():
-    return ''.join([v for v in str(datetime.now()) if v.isnumeric()])[4:]
+    return ''.join([v for v in str(datetime.utcnow()) if v.isnumeric()])[4:]
 
 
 def next_time():

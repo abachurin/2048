@@ -229,7 +229,7 @@ class Q_agent:
             if i < self.top_tile - 1:
                 self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
         self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
-        self.alpha = round(max(self.alpha * self.decay, self.low_alpha_limit), 3)
+        self.alpha = round(max(self.alpha * self.decay, self.low_alpha_limit), 4)
         self.next_decay = self.step + self.decay_step
         self.print('------')
         self._display_lr()
