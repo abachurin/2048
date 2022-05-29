@@ -229,7 +229,7 @@ class Q_agent:
             if i < self.top_tile - 1:
                 self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
         self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
-        self.alpha = round(max(self.alpha * self.decay, self.low_alpha_limit), 3)
+        self.alpha = round(max(self.alpha * self.decay, self.low_alpha_limit), 4)
         self.next_decay = self.step + self.decay_step
         self.print('------')
         self._display_lr()
@@ -243,7 +243,7 @@ class Q_agent:
     def train_run(self, num_eps=100000, saving=True):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
-        save_steps = 250 if self.n == 5 else (250 if self.n == 4 else 100)
+        save_steps = 250
         global_start = start = time.time()
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')

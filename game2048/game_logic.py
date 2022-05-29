@@ -234,7 +234,7 @@ class Game:
         num_tiles = min(width, empty)
         empty_cells = self.empty(row)
         tile_positions = random.sample(empty_cells, num_tiles)
-        worst = np.inf
+        # worst = np.inf
         average = 0
         for position in tile_positions:
             new_tile = 1 if random.randrange(10) else 2
@@ -242,7 +242,7 @@ class Game:
             new_row[position] = new_tile
             if self.game_over(new_row):
                 # best_value = estimator(row, score)
-                best_value = 0
+                best_value = -100
             else:
                 best_value = - np.inf
                 for direction in range(4):
@@ -251,7 +251,7 @@ class Game:
                         value = self.look_forward(estimator, test_row, test_score,
                                                   depth=depth - 1, width=width, ample=ample)
                         best_value = max(best_value, value)
-            worst = min(worst, best_value)
+            # worst = min(worst, best_value)
             average += max(best_value, 0)
         average = average / num_tiles
         return average

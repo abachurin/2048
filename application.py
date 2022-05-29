@@ -70,7 +70,7 @@ app.layout = dbc.Container([
     dbc.Row([
         dbc.Col(dbc.Card([
             html.H6('Choose:', id='mode_text', className='mode-text'),
-            dbc.DropdownMenu(id='choose_option', label='MODE ?', color='success', className='mode-choose',
+            dbc.DropdownMenu(id='mode_menu', label='MODE ?', color='success', className='mode-choose', disabled=True,
                              children=[dbc.DropdownMenuItem(mode_list[v][0], id=v, n_clicks=0) for v in mode_list]),
             dbc.Button(id='chart_button', className='chart-button', style={'display': 'none'}),
             dbc.InputGroup([
@@ -774,7 +774,7 @@ def restart_play(n, chain):
 # Log window callbacks
 @app.callback(
     Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
-    Output('description_button', 'n_clicks'),
+    Output('description_button', 'n_clicks'), Output('mode_menu', 'disabled'),
     Input('initiate_logs', 'n_intervals')
 )
 def assign_log_file(n):
@@ -784,7 +784,7 @@ def assign_log_file(n):
         tags = {'parent': parent, 'logs': log_file, 'proc': 0, 'agent': 0}
         add_status('logs', log_file, tags['parent'])
         Process(target=vacuum_cleaner, args=(parent,), daemon=True).start()
-        return log_file, tags, True, 1
+        return log_file, tags, True, 1, False
     else:
         raise PreventUpdate
 
@@ -877,6 +877,6 @@ app.clientside_callback(
 if __name__ == '__main__':
 
     # make_empty_status(); sys.exit()
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
 
