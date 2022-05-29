@@ -243,7 +243,7 @@ class Q_agent:
     def train_run(self, num_eps=100000, saving=True):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
-        save_steps = 250 if self.n == 5 else (250 if self.n == 4 else 100)
+        save_steps = 250
         global_start = start = time.time()
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')
