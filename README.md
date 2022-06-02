@@ -1,8 +1,9 @@
 #### Update May 2022
-* Two years after completion, I refactored the existing code and made some cosmetic imporvements. Most impoptantly, there is now a web interface to this project, which runs currently at https://robot-2048.com
+* Two years after completion, I refactored the existing code and made some cosmetic improvements. Most importantly, there is now a web interface to this project, which runs currently at https://robot-2048.com
 
-* One can install it locally and run `application.py` script. **But** first make a new AWS S3 bucket and add AWS credentials to `config.json` in the following format:
+* One can install it locally and run `application.py` script. **But** first make a new AWS S3 bucket create json file with AWS credentials in the following format:
 `{"access_key": "my AWS access key", "secret_key": "my AWS secret key", "bucket": "my bucket"}`
+and add it to `config.json` in place of my path
 
 * For ordinary format, run `show.py` as before
 
