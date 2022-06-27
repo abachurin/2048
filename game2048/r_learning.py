@@ -149,10 +149,6 @@ class Q_agent:
                            (np.random.random((4, 16 ** 5)) / 100).tolist() + \
                            (np.random.random((12, self.cutoff_for_6_f ** 6)) / 100).tolist()
             self.weight_signature = (17, 4, 12)
-            self.list_to_np()
-            with open('test', 'wb') as f:
-                pickle.dump(self.weights, f, -1)
-            sys.exit()
         elif self.n == 5:
             self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
                            (np.random.random((4, 16 ** 5)) / 100).tolist()

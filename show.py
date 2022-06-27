@@ -180,11 +180,6 @@ def input_speed():
 
 if __name__ == "__main__":
 
-    a = Q_agent(n=6)
-    a.train_run(10)
-    a.save_agent_local()
-    sys.exit()
-
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
     # change the speed parameter in ms below if you like
 
