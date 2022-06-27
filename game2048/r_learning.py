@@ -15,19 +15,19 @@ def log_reward(row, score, new_row, new_score):
 
 # features = all adjacent pairs
 def f_2(x):
-    x_vert = (16 * x[:3, :] + x[1:, :]).ravel()
-    x_hor = (16 * x[:, :3] + x[:, 1:]).ravel()
+    x_vert = ((x[:3, :] << 4) + x[1:, :]).ravel()
+    x_hor = ((x[:, :3] << 4) + x[:, 1:]).ravel()
     return np.concatenate([x_vert, x_hor])
 
 
 # features = all adjacent triples, i.e. 3 in a row + 3 in a any square missing one corner
 def f_3(x):
-    x_vert = (256 * x[:2, :] + 16 * x[1:3, :] + x[2:, :]).ravel()
-    x_hor = (256 * x[:, :2] + 16 * x[:, 1:3] + x[:, 2:]).ravel()
-    x_ex_00 = (256 * x[1:, :3] + 16 * x[1:, 1:] + x[:3, 1:]).ravel()
-    x_ex_01 = (256 * x[:3, :3] + 16 * x[1:, :3] + x[1:, 1:]).ravel()
-    x_ex_10 = (256 * x[:3, :3] + 16 * x[:3, 1:] + x[1:, 1:]).ravel()
-    x_ex_11 = (256 * x[:3, :3] + 16 * x[1:, :3] + x[:3, 1:]).ravel()
+    x_vert = ((x[:2, :] << 8) + (x[1:3, :] << 4) + x[2:, :]).ravel()
+    x_hor = ((x[:, :2] << 8) + (x[:, 1:3] << 4) + x[:, 2:]).ravel()
+    x_ex_00 = ((x[1:, :3] << 8) + (x[1:, 1:] << 4) + x[:3, 1:]).ravel()
+    x_ex_01 = ((x[:3, :3] << 8) + (x[1:, :3] << 4) + x[1:, 1:]).ravel()
+    x_ex_10 = ((x[:3, :3] << 8) + (x[:3, 1:] << 4) + x[1:, 1:]).ravel()
+    x_ex_11 = ((x[:3, :3] << 8) + (x[1:, :3] << 4) + x[:3, 1:]).ravel()
     return np.concatenate([x_vert, x_hor, x_ex_00, x_ex_01, x_ex_10, x_ex_11])
 
 
@@ -38,20 +38,35 @@ def f_3(x):
 # to kinda suppress and contradict each other.
 # So i left just columns, rows and squares. 17 features all in all. And it works just fine.
 def f_4(x):
-    x_vert = (4096 * x[0, :] + 256 * x[1, :] + 16 * x[2, :] + x[3, :]).ravel()
-    x_hor = (4096 * x[:, 0] + 256 * x[:, 1] + 16 * x[:, 2] + x[:, 3]).ravel()
-    x_sq = (4096 * x[:3, :3] + 256 * x[1:, :3] + 16 * x[:3, 1:] + x[1:, 1:]).ravel()
+    x_vert = ((x[0, :] << 12) + (x[1, :] << 8) + (x[2, :] << 4) + x[3, :]).ravel()
+    x_hor = ((x[:, 0] << 12) + (x[:, 1] << 8) + (x[:, 2] << 4) + x[:, 3]).ravel()
+    x_sq = ((x[:3, :3] << 12) + (x[1:, :3] << 8) + (x[:3, 1:] << 4) + x[1:, 1:]).ravel()
     return np.concatenate([x_vert, x_hor, x_sq])
 
 
-# Finally, we try adding 4 "cross" features for middle cells
+# Finally, we try adding 4 "cross" 5-features for middle cells
 def f_5(x):
-    x_vert = (4096 * x[0, :] + 256 * x[1, :] + 16 * x[2, :] + x[3, :]).ravel()
-    x_hor = (4096 * x[:, 0] + 256 * x[:, 1] + 16 * x[:, 2] + x[:, 3]).ravel()
-    x_sq = (4096 * x[:3, :3] + 256 * x[1:, :3] + 16 * x[:3, 1:] + x[1:, 1:]).ravel()
-    x_middle = (65536 * x[1: 3, 1: 3] + 4096 * x[:2, 1: 3] + 256 * x[1: 3, :2] + 16 * x[2: 4, 1: 3] + x[1: 3, 2: 4]
+    x_vert = ((x[0, :] << 12) + (x[1, :] << 8) + (x[2, :] << 4) + x[3, :]).ravel()
+    x_hor = ((x[:, 0] << 12) + (x[:, 1] << 8) + (x[:, 2] << 4) + x[:, 3]).ravel()
+    x_sq = ((x[:3, :3] << 12) + (x[1:, :3] << 8) + (x[:3, 1:] << 4) + x[1:, 1:]).ravel()
+    x_middle = ((x[1: 3, 1: 3] << 16) + (x[:2, 1: 3] << 12) + (x[1: 3, :2] << 8) + (x[2:, 1: 3] << 4) + x[1: 3, 2:]
                 ).ravel()
     return np.concatenate([x_vert, x_hor, x_sq, x_middle])
+
+
+# Let's try to add some limited 6-features, up to < 2 ** (cutoff - 1) > tile
+def f_6(x):
+    x_vert = ((x[0, :] << 12) + (x[1, :] << 8) + (x[2, :] << 4) + x[3, :]).ravel()
+    x_hor = ((x[:, 0] << 12) + (x[:, 1] << 8) + (x[:, 2] << 4) + x[:, 3]).ravel()
+    x_sq = ((x[:3, :3] << 12) + (x[1:, :3] << 8) + (x[:3, 1:] << 4) + x[1:, 1:]).ravel()
+    x_middle = ((x[1: 3, 1: 3] << 16) + (x[:2, 1: 3] << 12) + (x[1: 3, :2] << 8) + (x[2:, 1: 3] << 4) + x[1: 3, 2:]
+                ).ravel()
+    y = np.minimum(x, 11)
+    x_vert_6 = (248832 * y[0: 2, 0: 3] + 20736 * y[1: 3, 0: 3] + 1728 * y[2:, 0: 3] + 144 * y[0: 2, 1:] +
+                12 * y[1: 3, 1:] + y[2:, 1:]).ravel()
+    x_hor_6 = (248832 * y[0: 3, 0: 2] + 20736 * y[0: 3, 1: 3] + 1728 * y[0: 3, 2:] + 144 * y[1:, 0: 2] +
+               12 * y[1:, 1: 3] + y[1:, 2:]).ravel()
+    return np.concatenate([x_vert, x_hor, x_sq, x_middle, x_vert_6, x_hor_6])
 
 
 def max_tile_in_feature(n):
@@ -80,8 +95,8 @@ def max_tile_in_feature(n):
 
 class Q_agent:
 
-    feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5}
-    parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (21, 16 ** 5)}
+    feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5, 6: f_6}
+    parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (21, 16 ** 5), 6: (33, 0)}
 
     def __init__(self, name='agent', config_file=None, storage='s3', console='local', log_file=None, reward='basic',
                  decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01):
@@ -112,10 +127,10 @@ class Q_agent:
         self._upd = self._upd_simple if decay_model == 'simple' else self._upd_scaled
         self.num_feat, self.size_feat = Q_agent.parameter_shape[self.n]
         self.features = Q_agent.feature_functions[self.n]
-        self.top_tile = 10
-        self.max_in_f = max_tile_in_feature(self.n)
-        self.lr = {v: self.alpha for v in range(16)}
-        self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
+        if self.decay_model == 'scaled':
+            self.max_in_f = max_tile_in_feature(self.n)
+            self.lr = {v: self.alpha for v in range(16)}
+            self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
 
         # operational params
         self.step = 0
@@ -123,26 +138,58 @@ class Q_agent:
         self.top_score = 0
         self.train_history = []
         self.next_decay = self.decay_step
+        self.top_tile = 10
 
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
         # Besides, this can lead to blow-up, when some weights promptly go to infinity.
-        if self.n == 5:
+        if self.n == 6:
+            self.cutoff_for_6_f = 12       # hard coding this for faster performance of f_6 functions
+            self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
+                           (np.random.random((4, 16 ** 5)) / 100).tolist() + \
+                           (np.random.random((12, self.cutoff_for_6_f ** 6)) / 100).tolist()
+            self.weight_signature = (17, 4, 12)
+            self.list_to_np()
+            with open('test', 'wb') as f:
+                pickle.dump(self.weights, f, -1)
+            sys.exit()
+        elif self.n == 5:
             self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
                            (np.random.random((4, 16 ** 5)) / 100).tolist()
+            self.weight_signature = (17, 4)
         else:
             self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
+            self.weight_signature = (self.num_feat, )
 
     def __str__(self):
         return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
                f'trained for {self.step} episodes, top score = {self.top_score}'
 
+    def list_to_np(self):
+        start = 0
+        nps = []
+        for d in self.weight_signature:
+            y = self.weights[start: start + d]
+            nps.append(np.array(y, dtype=np.float32))
+            start += d
+        self.weights = nps
+
+    def np_to_list(self):
+        real = []
+        for weight_component in self.weights:
+            real += weight_component.tolist()
+        self.weights = real
+
     def save_agent_local(self):
+        self.list_to_np()
         with open(self.file, 'wb') as f:
             pickle.dump(self, f, -1)
+        self.np_to_list()
 
     def save_agent_s3(self):
+        self.list_to_np()
         save_s3(self, 'a/' + self.file)
+        self.np_to_list()
 
     def save_game_local(self, game):
         game.save_game(self.game_file)
@@ -154,6 +201,7 @@ class Q_agent:
     def load_agent(file):
         with open(file, 'rb') as f:
             agent = pickle.load(f)
+        agent.np_to_list()
         return agent
 
     # numpy arrays have a nice "advanced slicing" trick, used in this function
@@ -225,10 +273,11 @@ class Q_agent:
             self.print(f'episode = {self.step + 1}, current learning rate = {round(self.alpha, 4)}:')
 
     def decay_alpha(self):
-        for i in range(16):
-            if i < self.top_tile - 1:
-                self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
-        self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
+        if self.decay_model == 'scaled':
+            for i in range(16):
+                if i < self.top_tile - 1:
+                    self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
+            self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
         self.alpha = round(max(self.alpha * self.decay, self.low_alpha_limit), 4)
         self.next_decay = self.step + self.decay_step
         self.print('------')
@@ -243,7 +292,7 @@ class Q_agent:
     def train_run(self, num_eps=100000, saving=True):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
-        save_steps = 250
+        save_steps = 250 if self.n <=5 else 500
         global_start = start = time.time()
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')
