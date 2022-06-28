@@ -107,6 +107,7 @@ class Q_agent:
         self.game_file = 'best_of_' + self.file
         self.save_agent = self.save_agent_s3 if storage == 's3' else self.save_agent_local
         self.save_game = self.save_game_s3 if storage == 's3' else self.save_game_local
+        self.log_file = log_file
         self.print = print if (console == 'local' or log_file is None) else Logger(log_file=log_file).add
 
         # params from config file or init/defaults
@@ -290,6 +291,7 @@ class Q_agent:
         reached = [0] * 7
         save_steps = 250 if self.n <=5 else 500
         global_start = start = time.time()
+        save_s3('', self.log_file)
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')
         for i in range(self.step + 1, self.step + num_eps + 2):
@@ -316,6 +318,7 @@ class Q_agent:
                 self.decay_alpha()
 
             if i % 100 == 0:
+
                 ma = int(np.mean(ma100))
                 self.train_history.append(ma)
                 self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')

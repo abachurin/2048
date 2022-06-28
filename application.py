@@ -594,7 +594,6 @@ def start_training(*args):
         kill_process(current_process)
         current.log_file = log_file
         current.print = Logger(log_file=log_file).add
-        save_s3('', log_file)
         add_status('agent', name, tags['parent'])
         tags['agent'] = name
         current.save_agent()
