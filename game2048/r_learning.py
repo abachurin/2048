@@ -196,8 +196,7 @@ class Q_agent:
 
     @staticmethod
     def load_agent(file):
-        with open(file, 'rb') as f:
-            agent = pickle.load(f)
+        agent = load_s3(file)
         agent.np_to_list()
         return agent
 

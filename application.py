@@ -421,7 +421,7 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
         kill_chain(previous_chain)
         chain = f'a{time_suffix()}'
         game_logic.__dict__[chain] = True
-        agent = load_s3(agent_file)
+        agent = Q_agent.load_agent(agent_file)
         estimator = agent.evaluate
         game = Game()
         globals()[chain] = {
@@ -447,7 +447,7 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
 def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file, tags):
     if n and mode == 'Test Agent':
         kill_process(previous_proc)
-        agent = load_s3(agent_file)
+        agent = Q_agent.load_agent(agent_file)
         estimator = agent.evaluate
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
@@ -579,7 +579,7 @@ def start_training(*args):
             message = my_alert(f'new config file {new_config_file[2:]} saved')
             current = Q_agent(name=name, config_file=new_config_file, storage='s3', console='web')
         else:
-            current = load_s3(new_agent_file)
+            current = Q_agent.load_agent(new_agent_file)
             if current.name != name:
                 if f'a/{name}.pkl' in list_names_s3():
                     return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 9
@@ -876,6 +876,6 @@ app.clientside_callback(
 if __name__ == '__main__':
 
     # make_empty_status(); sys.exit()
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
 

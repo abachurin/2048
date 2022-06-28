@@ -159,7 +159,10 @@ def input_name(what):
         try:
             idx = int(idx)
             if idx in all_items:
-                return load_s3(all_items[idx])
+                if what == 'game':
+                    return load_s3(all_items[idx])
+                elif what == 'agent':
+                    return Q_agent.load_agent(all_items[idx])
         except Exception:
             continue
 
