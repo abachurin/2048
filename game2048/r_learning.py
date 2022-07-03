@@ -241,7 +241,7 @@ class Q_agent:
             for direction in range(4):
                 new_row, new_score, change = game.pre_move(game.row, game.score, direction)
                 if change:
-                    value = self.evaluate(new_row) + new_score - game.score
+                    value = self.evaluate(new_row)
                     if value > best_value:
                         action, best_value = direction, value
                         best_row, best_score = new_row, new_score
@@ -290,7 +290,7 @@ class Q_agent:
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         best_of_1000 = Game()
-        save_steps = 500
+        save_steps = 250 if self.n <= 5 else 500
         global_start = start = time.time()
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')
