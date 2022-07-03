@@ -188,7 +188,6 @@ def toggle_guide_page(n):
 )
 def show_project_description(n):
     if n:
-        print(project_description)
         return [
             dcc.Markdown(project_description[1], link_target='_blanc', className='md_content'),
             html.Img(src=app.get_asset_url('score_chart_2_tile.png')),
@@ -597,6 +596,7 @@ def start_training(*args):
         add_status('agent', name, tags['parent'])
         tags['agent'] = name
         current.save_agent()
+        save_s3('', log_file)
         proc = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
         proc.start()
         pid = f'{proc.pid}'
@@ -876,6 +876,6 @@ app.clientside_callback(
 if __name__ == '__main__':
 
     # make_empty_status(); sys.exit()
-    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
 

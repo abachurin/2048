@@ -5,12 +5,24 @@ def basic_reward(row, score, new_row, new_score):
     return new_score - score
 
 
-# Intuitively (at least my initial intuition said so :) log-score should work better than the score itself.
+# Intuitively (at least my initial intuition said so) log-score should work better than the score itself.
 # And indeed it starts learning much faster compared to the basic reward. But then it slows down significantly.
-# I am not sure how to explain it, may be it's just an issue of learning rate tuning ..
+# I am not sure how to explain it, maybe it's just an issue of learning rate tuning ..
 
 def log_reward(row, score, new_row, new_score):
     return np.log(new_score + 1) - np.log(score + 1)
+
+
+# Makes a dict of max tile in a given feature, for "scaled" learning rate decay
+def max_tile_in_feature(n):
+    result = {}
+    for i in range(1 << (4 * n)):
+        start, top = i, 0
+        while start:
+            top = max(top, start % 16)
+            start //= 16
+        result[i] = top
+    return result
 
 
 # features = all adjacent pairs
@@ -67,17 +79,6 @@ def f_6(x):
     x_hor_6 = (248832 * y[0: 3, 0: 2] + 20736 * y[0: 3, 1: 3] + 1728 * y[0: 3, 2:] + 144 * y[1:, 0: 2] +
                12 * y[1:, 1: 3] + y[1:, 2:]).ravel()
     return np.concatenate([x_vert, x_hor, x_sq, x_middle, x_vert_6, x_hor_6])
-
-
-def max_tile_in_feature(n):
-    result = {}
-    for i in range(1 << (4 * n)):
-        start, top = i, 0
-        while start:
-            top = max(top, start % 16)
-            start //= 16
-        result[i] = top
-    return result
 
 
 # The RL agent. It is not actually Q, as it tries to learn values of the states (V), rather than actions (Q).
@@ -288,9 +289,9 @@ class Q_agent:
     def train_run(self, num_eps=100000, saving=True):
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
-        save_steps = 250 if self.n <=5 else 500
+        best_of_1000 = Game()
+        save_steps = 250 if self.n <= 5 else 500
         global_start = start = time.time()
-        save_s3('', self.log_file)
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every {save_steps} episodes')
         for i in range(self.step + 1, self.step + num_eps + 2):
@@ -302,12 +303,14 @@ class Q_agent:
             game = self.episode()
             ma100.append(game.score)
             av1000.append(game.score)
-            if game.score > self.top_score:
-                self.top_game, self.top_score = game, game.score
-                self.print(f'\nnew best game at episode {i}!\n{game.__str__()}\n')
-                if saving:
-                    self.save_game(game)
-                    self.print(f'game saved at {self.game_file}')
+            if game.score > best_of_1000.score:
+                best_of_1000 = game
+                if game.score > self.top_score:
+                    self.top_game, self.top_score = game, game.score
+                    self.print(f'\nnew best game at episode {i}!\n{game.__str__()}\n')
+                    if saving:
+                        self.save_game(game)
+                        self.print(f'game saved at {self.game_file}')
             max_tile = np.max(game.row)
             if max_tile >= 10:
                 reached[max_tile - 10] += 1
@@ -335,15 +338,19 @@ class Q_agent:
                 av1000 = []
                 for j in range(7):
                     r = sum(reached[j:]) / 10
-                    self.print(f'{1 << (j + 10)} reached in {r} %')
+                    if r:
+                        self.print(f'{1 << (j + 10)} reached in {r} %')
                 reached = [0] * 7
-                self.print(f'best score so far = {self.top_score}')
+                self.print(f'best of last 1000:')
+                self.print(best_of_1000.__str__())
+                self.print(f'best of this Agent:')
                 self.print(self.top_game.__str__())
                 self._display_lr()
                 self.print('------\n')
                 if saving:
                     self.save_agent()
                     self.print(f'agent saved in {self.file}')
+                best_of_1000 = Game()
         self.print(f'Total time for {num_eps} = {time.time() - global_start}')
         if saving:
             self.save_agent()
