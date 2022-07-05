@@ -1,30 +1,6 @@
 from .game_logic import *
 
 
-def basic_reward(row, score, new_row, new_score):
-    return new_score - score
-
-
-# Intuitively (at least my initial intuition said so) log-score should work better than the score itself.
-# And indeed it starts learning much faster compared to the basic reward. But then it slows down significantly.
-# I am not sure how to explain it, maybe it's just an issue of learning rate tuning ..
-
-def log_reward(row, score, new_row, new_score):
-    return np.log(new_score + 1) - np.log(score + 1)
-
-
-# Makes a dict of max tile in a given feature, for "scaled" learning rate decay
-def max_tile_in_feature(n):
-    result = {}
-    for i in range(1 << (4 * n)):
-        start, top = i, 0
-        while start:
-            top = max(top, start % 16)
-            start //= 16
-        result[i] = top
-    return result
-
-
 # features = all adjacent pairs
 def f_2(x):
     x_vert = ((x[:3, :] << 4) + x[1:, :]).ravel()
@@ -99,16 +75,14 @@ class QAgent:
     feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5, 6: f_6}
     parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (21, 16 ** 5), 6: (33, 0)}
 
-    def __init__(self, name='agent', config_file=None, storage='s3', console='web', log_file=None, reward='basic',
-                 decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01,
-                 with_weights=True):
+    def __init__(self, name='agent', config_file=None, storage='s3', console='web', log_file=None, n=4, alpha=0.25,
+                 decay=0.75, decay_step=10000, low_alpha_limit=0.01, with_weights=True):
 
         # basic params
         self.name = name
         self.file = name + '.pkl'
         self.game_file = 'best_of_' + self.file
-        self.save_agent = self.save_agent_s3 if storage == 's3' else self.save_agent_local
-        self.save_game = self.save_game_s3 if storage == 's3' else self.save_game_local
+        self.s3 = (storage == 's3')
         self.log_file = log_file
         self.print = print if (console == 'local' or log_file is None) else Logger(log_file=log_file).add
 
@@ -117,8 +91,6 @@ class QAgent:
             config = load_s3(config_file) or {}
         else:
             config = {}
-        self.reward = config.get('reward', reward)
-        self.decay_model = config.get('decay_model', decay_model)
         self.n = config.get('n', n)
         self.alpha = config.get('alpha', alpha)
         self.decay = config.get('decay', decay)
@@ -126,14 +98,8 @@ class QAgent:
         self.low_alpha_limit = config.get('low_alpha_limit', low_alpha_limit)
 
         # derived params
-        self.R = basic_reward if reward == 'basic' else log_reward
-        self._upd = self._upd_simple if decay_model == 'simple' else self._upd_scaled
         self.num_feat, self.size_feat = QAgent.parameter_shape[self.n]
         self.features = QAgent.feature_functions[self.n]
-        if self.decay_model == 'scaled':
-            self.max_in_f = max_tile_in_feature(self.n)
-            self.lr = {v: self.alpha for v in range(16)}
-            self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
 
         # operational params
         self.step = 0
@@ -153,8 +119,7 @@ class QAgent:
             self.weight_signature = None
 
     def __str__(self):
-        return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
-               f'trained for {self.step} episodes, top score = {self.top_score}'
+        return f'Agent {self.name}, n={self.n}\ntrained for {self.step} episodes, top score = {self.top_score}'
 
     def init_weights(self):
         if self.n == 6:
@@ -186,26 +151,27 @@ class QAgent:
             real += weight_component.tolist()
         self.weights = real
 
-    def save_agent_local(self):
-        self.weights = self.list_to_np()
-        with open(self.file, 'wb') as f:
-            pickle.dump(self, f, -1)
-        self.np_to_list()
+    def save_agent(self):
+        if self.s3:
+            nps = self.list_to_np()
+            agent_params = QAgent(name=self.name, with_weights=False)
+            for key in self.__dict__:
+                if key != 'weights':
+                    setattr(agent_params, key, getattr(self, key))
+            save_s3(agent_params, 'a/' + self.file)
+            save_s3(nps, 'weights/' + self.file)
+            del nps
+        else:
+            self.weights = self.list_to_np()
+            with open(self.file, 'wb') as f:
+                pickle.dump(self, f, -1)
+            self.np_to_list()
 
-    def save_agent_s3(self):
-        nps = self.list_to_np()
-        agent_params = QAgent(name=self.name, with_weights=False)
-        for key in self.__dict__:
-            if key != 'weights':
-                setattr(agent_params, key, getattr(self, key))
-        save_s3(agent_params, 'a/' + self.file)
-        save_s3(nps, 'weights/' + self.file)
-
-    def save_game_local(self, game):
-        game.save_game(self.game_file)
-
-    def save_game_s3(self, game):
-        save_s3(game, 'g/' + self.game_file)
+    def save_game(self, game):
+        if self.s3:
+            save_s3(game, 'g/' + self.game_file)
+        else:
+            game.save_game(self.game_file)
 
     @staticmethod
     def load_agent_local(file):
@@ -221,26 +187,18 @@ class QAgent:
         agent.np_to_list()
         return agent
 
-    # numpy arrays have a nice "advanced slicing" trick, used in this function
     def evaluate(self, row, score=None):
         return sum([self.weights[i][f] for i, f in enumerate(self.features(row))])
 
-    def _upd_scaled(self, x, dw):
-        for i, f in enumerate(self.features(x)):
-            self.weights[i][f] += dw * self.lr_from_f[f]
-
-    def _upd_simple(self, x, dw):
-        dw *= self.alpha
-        for i, f in enumerate(self.features(x)):
-            self.weights[i][f] += dw
-
     # The numpy library has very nice functions of transpose, rot90, ravel etc.
-    # No actual number relocation happens, just the "view" is changed. So it's very fast.
+    # No actual data relocation happens, just the "view" is changed. So it's very fast.
     def update(self, row, dw):
         for _ in range(4):
-            self._upd(row, dw)
+            for i, f in enumerate(self.features(row)):
+                self.weights[i][f] += dw
             row = np.transpose(row)
-            self._upd(row, dw)
+            for i, f in enumerate(self.features(row)):
+                self.weights[i][f] += dw
             row = np.rot90(np.transpose(row))
 
     # The game 2048 has two kinds of states. After we make a move - this is the one we try to evaluate,
@@ -267,7 +225,7 @@ class QAgent:
                         best_row, best_score = new_row, new_score
             if state is not None:
                 # reward = self.R(game.row, game.score, best_row, best_score)
-                dw = (best_score - game.score + best_value - old_label) / self.num_feat
+                dw = (best_score - game.score + best_value - old_label) * self.alpha / self.num_feat
                 self.update(state, dw)
             game.row, game.score = best_row, best_score
             game.odometer += 1
@@ -275,26 +233,16 @@ class QAgent:
             state, old_label = game.row.copy(), best_value
             game.new_tile()
         game.moves.append(-1)
-        dw = - old_label / self.num_feat
+        dw = - old_label * self.alpha / self.num_feat
         self.update(state, dw)
 
         self.step += 1
         return game
 
     def _display_lr(self):
-        if self.decay_model == 'scaled':
-            self.print(f'episode = {self.step + 1}, current learning rate as function of max tile in the element:')
-            self.print({1 << v if v else 0: round(self.lr[v], 4) for v in self.lr if v >= 9})
-            self.print(f'next learning rate decay scheduled at step {self.next_decay + 1}')
-        elif self.decay_model == 'simple':
-            self.print(f'episode = {self.step + 1}, current learning rate = {round(self.alpha, 4)}:')
+        self.print(f'episode = {self.step + 1}, current learning rate = {round(self.alpha, 4)}:')
 
     def decay_alpha(self):
-        if self.decay_model == 'scaled':
-            for i in range(16):
-                if i < self.top_tile - 1:
-                    self.lr[i] = max(self.lr[i] * self.decay, self.low_alpha_limit)
-            self.lr_from_f = {i: self.lr[self.max_in_f[i]] for i in range(self.size_feat)}
         self.alpha = round(max(self.alpha * self.decay, self.low_alpha_limit), 4)
         self.next_decay = self.step + self.decay_step
         self.print('------')
