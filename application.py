@@ -564,7 +564,7 @@ def start_training(*args):
             return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 9
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if name == 'test_agent':
-            name = f'agent_{time_suffix()}'
+            name = f'agent_{time_suffix(6)}'
         num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
             if f'a/{name}.pkl' in list_names_s3():
@@ -775,7 +775,7 @@ def restart_play(n, chain):
 )
 def assign_log_file(n):
     if n:
-        log_file = f'l/logs_{time_suffix()}.txt'
+        log_file = f'l/logs_{time_suffix(6)}.txt'
         parent = f'{os.getpid()}_{time_suffix()}'
         tags = {'parent': parent, 'logs': log_file, 'proc': 0, 'agent': 0}
         add_status('logs', log_file, tags['parent'])
