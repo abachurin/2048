@@ -133,6 +133,18 @@ def delete_status(key, value):
     save_s3(status, 'status.json')
 
 
+def is_process_alive(data):
+    if not data:
+        return False
+    pid = data['pid']
+    if (not pid) or (not psutil.pid_exists(int(pid))):
+        return False
+    if psutil.Process(int(pid)).status() != psutil.STATUS_RUNNING:
+        kill_process(data)
+        return False
+    return True
+
+
 def kill_process(data, delete=True):
     if not data:
         return
@@ -179,7 +191,8 @@ class Logger:
         'welcome': "Welcome! Let's do something interesting. Choose MODE of action!",
         'stop': 'Process terminated by user',
         'training': 'Current process: training agent',
-        'testing': 'Current process: collecting agent statistics'
+        'testing': 'Current process: collecting agent statistics',
+        'collapse': 'Current process collapsed!'
     }
 
     def __init__(self, log_file):

@@ -158,18 +158,25 @@ app.layout = dbc.Container([
 # refresh status, to keep parallel processes from closing down while the app is open in the browser,
 # script "vacuum_cleaner" is killing them afterwards
 @app.callback(
-    Output('refresh_status', 'disabled'),
+    Output('current_process', 'data'), Output('stop_agent', 'style'),
     Input('refresh_status', 'n_intervals'),
-    State('session_tags', 'data')
+    State('session_tags', 'data'), State('current_process', 'data'), State('log_file', 'data')
 )
-def refresh_status(n, tags):
-    if n and tags:
-        status = load_s3('status.json')
-        for key in status:
-            value = tags[key]
-            if value in status[key]:
-                status[key][value]['finish'] = next_time()
-        save_s3(status, 'status.json')
+def refresh_status(n, tags, current_process, log_file):
+    if n:
+        if tags:
+            status = load_s3('status.json')
+            for key in status:
+                value = tags[key]
+                if value in status[key]:
+                    status[key][value]['finish'] = next_time()
+            save_s3(status, 'status.json')
+        if current_process:
+            if not is_process_alive(current_process):
+                now = load_s3(log_file) or ''
+                save_s3(now + '\n' + Logger.msg['collapse'], log_file)
+                return None, {'display': 'none'}
+        raise PreventUpdate
     raise PreventUpdate
 
 

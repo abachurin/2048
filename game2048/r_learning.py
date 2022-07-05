@@ -293,7 +293,6 @@ class QAgent:
                 self.decay_alpha()
 
             if i % 100 == 0:
-
                 ma = int(np.mean(ma100))
                 self.train_history.append(ma)
                 self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
