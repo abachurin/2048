@@ -46,8 +46,8 @@ else:
     print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 
 
-def time_suffix():
-    return ''.join([v for v in str(datetime.utcnow()) if v.isnumeric()])[4:-6]
+def time_suffix(precision=6):
+    return ''.join([v for v in str(datetime.utcnow()) if v.isnumeric()])[4:-precision]
 
 
 def next_time():
@@ -56,7 +56,7 @@ def next_time():
 
 def temp_local_name(name):
     body, ext = name.split('.')
-    return f'temp{time_suffix()}.{ext}', ext
+    return f'temp{time_suffix(precision=1)}.{ext}', ext
 
 
 def list_names_s3():
