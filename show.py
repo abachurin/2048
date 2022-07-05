@@ -162,7 +162,7 @@ def input_name(what):
                 if what == 'game':
                     return load_s3(all_items[idx])
                 elif what == 'agent':
-                    return Q_agent.load_agent(all_items[idx])
+                    return QAgent.load_agent(all_items[idx])
         except Exception:
             continue
 
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         speed = input_speed()
 
         if option == '2':
-            results = Game.trial(estimator=est, num=100)
+            results = QAgent.trial(estimator=est, num=100, console='local')
             Show().replay(results[0], speed=speed)
         else:
             Show().watch(estimator=est, speed=speed)

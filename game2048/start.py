@@ -15,7 +15,6 @@ from multiprocessing import Process
 from threading import Thread
 import psutil
 from dateutil import parser
-from functools import partial
 
 working_directory = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(working_directory, 'config.json'), 'r') as f:
@@ -48,7 +47,7 @@ else:
 
 
 def time_suffix():
-    return ''.join([v for v in str(datetime.utcnow()) if v.isnumeric()])[4:]
+    return ''.join([v for v in str(datetime.utcnow()) if v.isnumeric()])[4:-6]
 
 
 def next_time():
@@ -57,9 +56,7 @@ def next_time():
 
 def temp_local_name(name):
     body, ext = name.split('.')
-    if body[1] == '/':
-        body = body[2:]
-    return f'{body}_{time_suffix()}.{ext}', ext
+    return f'temp{time_suffix()}.{ext}', ext
 
 
 def list_names_s3():

@@ -94,13 +94,14 @@ def f_6(x):
 # 4) The same goes for back-propagation. We only need to update 17 numbers of 1m+ on every step.
 # 5) But in fact we update 17 * 8 weights using an obvious D4 symmetry group acting on the board
 
-class Q_agent:
+class QAgent:
 
     feature_functions = {2: f_2, 3: f_3, 4: f_4, 5: f_5, 6: f_6}
     parameter_shape = {2: (24, 16 ** 2), 3: (52, 16 ** 3), 4: (17, 16 ** 4), 5: (21, 16 ** 5), 6: (33, 0)}
 
-    def __init__(self, name='agent', config_file=None, storage='s3', console='local', log_file=None, reward='basic',
-                 decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01):
+    def __init__(self, name='agent', config_file=None, storage='s3', console='web', log_file=None, reward='basic',
+                 decay_model='simple', n=4, alpha=0.25, decay=0.75, decay_step=10000, low_alpha_limit=0.01,
+                 with_weights=True):
 
         # basic params
         self.name = name
@@ -127,8 +128,8 @@ class Q_agent:
         # derived params
         self.R = basic_reward if reward == 'basic' else log_reward
         self._upd = self._upd_simple if decay_model == 'simple' else self._upd_scaled
-        self.num_feat, self.size_feat = Q_agent.parameter_shape[self.n]
-        self.features = Q_agent.feature_functions[self.n]
+        self.num_feat, self.size_feat = QAgent.parameter_shape[self.n]
+        self.features = QAgent.feature_functions[self.n]
         if self.decay_model == 'scaled':
             self.max_in_f = max_tile_in_feature(self.n)
             self.lr = {v: self.alpha for v in range(16)}
@@ -145,11 +146,22 @@ class Q_agent:
         # The weights can be safely initialized to just zero, but that gives the 0 move (="left")
         # an initial preference. Most probably this is irrelevant, but i wanted an option to avoid it.
         # Besides, this can lead to blow-up, when some weights promptly go to infinity.
+        if with_weights:
+            self.init_weights()
+        else:
+            self.weights = None
+            self.weight_signature = None
+
+    def __str__(self):
+        return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
+               f'trained for {self.step} episodes, top score = {self.top_score}'
+
+    def init_weights(self):
         if self.n == 6:
-            self.cutoff_for_6_f = 12       # hard coding this for faster performance of f_6 functions
+            cutoff_for_6_f = 12  # hard coding this for faster performance of f_6 functions
             self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
                            (np.random.random((4, 16 ** 5)) / 100).tolist() + \
-                           (np.random.random((12, self.cutoff_for_6_f ** 6)) / 100).tolist()
+                           (np.random.random((12, cutoff_for_6_f ** 6)) / 100).tolist()
             self.weight_signature = (17, 4, 12)
         elif self.n == 5:
             self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
@@ -157,11 +169,7 @@ class Q_agent:
             self.weight_signature = (17, 4)
         else:
             self.weights = (np.random.random((self.num_feat, self.size_feat)) / 100).tolist()
-            self.weight_signature = (self.num_feat, )
-
-    def __str__(self):
-        return f'Agent {self.name}, n={self.n}, reward={self.reward}, decay_model={self.decay_model}\n' \
-               f'trained for {self.step} episodes, top score = {self.top_score}'
+            self.weight_signature = (self.num_feat,)
 
     def list_to_np(self):
         start = 0
@@ -170,7 +178,7 @@ class Q_agent:
             y = self.weights[start: start + d]
             nps.append(np.array(y, dtype=np.float32))
             start += d
-        self.weights = nps
+        return nps
 
     def np_to_list(self):
         real = []
@@ -179,15 +187,19 @@ class Q_agent:
         self.weights = real
 
     def save_agent_local(self):
-        self.list_to_np()
+        self.weights = self.list_to_np()
         with open(self.file, 'wb') as f:
             pickle.dump(self, f, -1)
         self.np_to_list()
 
     def save_agent_s3(self):
-        self.list_to_np()
-        save_s3(self, 'a/' + self.file)
-        self.np_to_list()
+        nps = self.list_to_np()
+        agent_params = QAgent(name=self.name, with_weights=False)
+        for key in self.__dict__:
+            if key != 'weights':
+                setattr(agent_params, key, getattr(self, key))
+        save_s3(agent_params, 'a/' + self.file)
+        save_s3(nps, 'weights/' + self.file)
 
     def save_game_local(self, game):
         game.save_game(self.game_file)
@@ -196,8 +208,16 @@ class Q_agent:
         save_s3(game, 'g/' + self.game_file)
 
     @staticmethod
+    def load_agent_local(file):
+        with open(file, 'r') as f:
+            agent = pickle.load(f)
+        agent.np_to_list()
+        return agent
+
+    @staticmethod
     def load_agent(file):
         agent = load_s3(file)
+        agent.weights = load_s3(f'weights/{file[2:]}')
         agent.np_to_list()
         return agent
 
@@ -286,7 +306,12 @@ class Q_agent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    def train_run(self, num_eps=100000, saving=True):
+    def train_run(self, num_eps=100000, add_weights='already', saving=True):
+        if add_weights == 'add':
+            self.init_weights()
+        elif add_weights != 'already':
+            self.weights = load_s3(add_weights)
+            self.np_to_list()
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         best_of_1000 = Game()
@@ -355,3 +380,50 @@ class Q_agent:
         if saving:
             self.save_agent()
             self.print(f'agent saved in {self.file}')
+
+    @staticmethod
+    def trial(estimator=None, agent_file=None, limit_tile=0, num=20, game_init=None, depth=0, width=1, since_empty=6,
+              storage='s3', console='local', log_file=None, game_file=None, verbose=False):
+        display = print if console == 'local' else Logger(log_file=log_file).add
+        if agent_file:
+            display(f'Loading Agent from {agent_file} ...')
+            agent = QAgent.load_agent(agent_file)
+            estimator = agent.evaluate
+            display(f'Trial run for {num} games, Agent = {agent.name}\n'
+                    f'Looking forward: depth={depth}, width={width}, since_empty={since_empty}')
+        start = time.time()
+        results = []
+        for i in range(num):
+            now = time.time()
+            game = Game() if game_init is None else game_init.copy()
+            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=since_empty,
+                           verbose=verbose)
+            display(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
+                    f'time = {(time.time() - now):.2f}')
+            results.append(game)
+        average = np.average([v.score for v in results])
+        figures = [(1 << np.max(v.row)) for v in results]
+        total_odo = sum([v.odometer for v in results])
+        results.sort(key=lambda v: v.score, reverse=True)
+
+        def share(limit):
+            return len([0 for v in figures if v >= limit]) / len(figures) * 100
+
+        message = '\nBest games:\n'
+        for v in results[:3]:
+            message += v.__str__() + '\n' + '\n'
+        elapsed = time.time() - start
+        message += f'average score of {num} runs = {average}\n' + f'8192 reached in {share(8192)}%\n' + \
+                   f'4096 reached in {share(4096)}%\n' + f'2048 reached in {share(2048)}%\n' + \
+                   f'1024 reached in {share(1024)}%\n' + f'total time = {round(elapsed, 2)}\n' + \
+                   f'average time per move = {round(elapsed / total_odo * 1000, 2)} ms\n' + \
+                   f'total number of shuffles = {Game.counter}\n' + \
+                   f'time per shuffle = {round(elapsed / Game.counter * 1000, 2)} ms'
+        display(message)
+        if game_file:
+            if storage == 's3':
+                save_s3(results[0], game_file)
+            else:
+                results[0].save_game(file=game_file)
+            display(f'Best game saved at {game_file}')
+        return results

@@ -420,7 +420,7 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
         kill_chain(previous_chain)
         chain = f'a{time_suffix()}'
         game_logic.__dict__[chain] = True
-        agent = Q_agent.load_agent(agent_file)
+        agent = QAgent.load_agent(agent_file)
         estimator = agent.evaluate
         game = Game()
         globals()[chain] = {
@@ -446,13 +446,9 @@ def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
 def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file, tags):
     if n and mode == 'Test Agent':
         kill_process(previous_proc)
-        agent = Q_agent.load_agent(agent_file)
-        estimator = agent.evaluate
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
-                  'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl'}
-        save_s3(f'Trial run for {num_eps} games, Agent = {agent.name}\n'
-                f'Looking forward: depth={depth}, width={width}, since_empty={empty}', log_file)
-        proc = Process(target=Game.trial, args=(estimator,), kwargs=params, daemon=True)
+                  'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl', 'agent_file': agent_file}
+        proc = Process(target=QAgent.trial, kwargs=params, daemon=True)
         proc.start()
         pid = str(proc.pid)
         add_status('proc', pid, tags['parent'])
@@ -464,7 +460,7 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
 
 # Agent Train callbacks
 @app.callback(
-    Output('choose_train_agent', 'options'),
+    Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'),
     Output('choose_config', 'options'), Output('choose_config', 'value'),
     Input('input_group_train', 'style')
 )
@@ -475,7 +471,7 @@ def find_agents(style):
     configs = [v for v in list_names_s3() if v[:2] == 'c/']
     agent_options = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
     conf_options = [{'label': v[2:-5], 'value': v} for v in configs] + [{'label': 'New config', 'value': 'New config'}]
-    return agent_options, conf_options, None
+    return agent_options, None, conf_options, None
 
 
 @app.callback(
@@ -536,10 +532,10 @@ def fill_params(is_open, agent_name, config_name):
             ui_params = [getattr(agent, e) for e in params_list[:-1]] + [params_dict['Training episodes']['value']]
         elif config_name != 'New config':
             config = load_s3(config_name)
-            dis = [False for e in params_list]
+            dis = [False for _ in params_list]
             ui_params = [config.get(e, params_dict[e]['value']) for e in params_list]
         else:
-            dis = [False for e in params_list]
+            dis = [False for _ in params_list]
             ui_params = [params_dict[e]['value'] for e in params_list]
         return dis + ui_params + [False, NUP]
     else:
@@ -568,7 +564,7 @@ def start_training(*args):
             return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 9
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if name == 'test_agent':
-            name = f'test_{time_suffix()}'
+            name = f'agent_{time_suffix()}'
         num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
             if f'a/{name}.pkl' in list_names_s3():
@@ -576,9 +572,11 @@ def start_training(*args):
             new_config_file = f'c/config_{name}.json'
             save_s3(ui_params, new_config_file)
             message = my_alert(f'new config file {new_config_file[2:]} saved')
-            current = Q_agent(name=name, config_file=new_config_file, storage='s3', console='web')
+            current = QAgent(name=name, config_file=new_config_file, with_weights=False)
+            add_weights = 'add'
         else:
-            current = Q_agent.load_agent(new_agent_file)
+            current = load_s3(new_agent_file)
+            add_weights = f'weights/{current.name}.pkl'
             if current.name != name:
                 if f'a/{name}.pkl' in list_names_s3():
                     return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 9
@@ -595,9 +593,8 @@ def start_training(*args):
         current.print = Logger(log_file=log_file).add
         add_status('agent', name, tags['parent'])
         tags['agent'] = name
-        current.save_agent()
         save_s3('', log_file)
-        proc = Process(target=current.train_run, kwargs={'num_eps': num_eps}, daemon=True)
+        proc = Process(target=current.train_run, kwargs={'num_eps': num_eps, 'add_weights': add_weights}, daemon=True)
         proc.start()
         pid = f'{proc.pid}'
         add_status('proc', pid, tags['parent'])
@@ -648,7 +645,7 @@ def enable_chart_button(*args):
     if not ctx.triggered:
         raise PreventUpdate
     agent = ctx.triggered[0]['value']
-    if agent == 'New agent':
+    if agent is None or agent == 'New agent':
         raise PreventUpdate
     return {'display': 'block'}, f'{agent[2: -4]} train history chart', agent
 
@@ -876,5 +873,5 @@ app.clientside_callback(
 if __name__ == '__main__':
 
     # make_empty_status(); sys.exit()
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)

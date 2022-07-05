@@ -256,47 +256,6 @@ class Game:
         average = average / num_tiles
         return average
 
-    @staticmethod
-    def trial(estimator, limit_tile=0, num=20, game_init=None, depth=0, width=1, since_empty=6,
-              storage='s3', console='local', log_file=None, game_file=None, verbose=False):
-        display = print if console == 'local' else Logger(log_file=log_file).add
-        start = time.time()
-        results = []
-        for i in range(num):
-            now = time.time()
-            game = Game() if game_init is None else game_init.copy()
-            game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=since_empty,
-                           verbose=verbose)
-            display(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
-                    f'time = {(time.time() - now):.2f}')
-            results.append(game)
-        average = np.average([v.score for v in results])
-        figures = [(1 << np.max(v.row)) for v in results]
-        total_odo = sum([v.odometer for v in results])
-        results.sort(key=lambda v: v.score, reverse=True)
-
-        def share(limit):
-            return len([0 for v in figures if v >= limit]) / len(figures) * 100
-
-        message = '\nBest games:\n'
-        for v in results[:3]:
-            message += v.__str__() + '\n' + '\n'
-        elapsed = time.time() - start
-        message += f'average score of {num} runs = {average}\n' + f'8192 reached in {share(8192)}%\n' + \
-                   f'4096 reached in {share(4096)}%\n' + f'2048 reached in {share(2048)}%\n' + \
-                   f'1024 reached in {share(1024)}%\n' + f'total time = {elapsed}\n' + \
-                   f'average time per move = {elapsed / total_odo * 1000} ms\n' + \
-                   f'total number of shuffles = {Game.counter}\n' + \
-                   f'time per shuffle = {elapsed / Game.counter * 1000} ms'
-        display(message)
-        if game_file:
-            if storage == 's3':
-                save_s3(results[0], game_file)
-            else:
-                results[0].save_game(file=game_file)
-            display(f'Best game saved at {game_file}')
-        return results
-
     # replay game in text mode, for debugging purposes
     def replay(self, verbose=True):
         chain = {}
