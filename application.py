@@ -168,10 +168,11 @@ def refresh_status(n, tags, current_process, log_file):
         save_s3(memo_text + memory_usage_line(), 'memory_usage.txt')
         if tags:
             status = load_s3('status.json')
+            next_check = next_time()
             for key in status:
                 value = tags[key]
                 if value in status[key]:
-                    status[key][value]['finish'] = next_time()
+                    status[key][value]['finish'] = next_check
             save_s3(status, 'status.json')
         if current_process:
             if not is_process_alive(current_process):
@@ -457,6 +458,11 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
         kill_process(previous_proc)
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl', 'agent_file': agent_file}
+
+        memo_text = load_s3('memory_usage.txt')
+        memo_text += f'{str(datetime.now())[11:]} start_test on click {n}'
+        save_s3(memo_text, 'memory_usage.txt')
+
         proc = Process(target=QAgent.trial, kwargs=params, daemon=True)
         proc.start()
         pid = str(proc.pid)
@@ -603,6 +609,11 @@ def start_training(*args):
         add_status('agent', name, tags['parent'])
         tags['agent'] = name
         save_s3('', log_file)
+
+        memo_text = load_s3('memory_usage.txt')
+        memo_text += f'{str(datetime.now())[11:]} start_TRAIN on click {args[0]}'
+        save_s3(memo_text, 'memory_usage.txt')
+
         proc = Process(target=current.train_run, kwargs={'num_eps': num_eps, 'add_weights': add_weights}, daemon=True)
         proc.start()
         pid = f'{proc.pid}'
