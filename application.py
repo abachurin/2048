@@ -164,6 +164,8 @@ app.layout = dbc.Container([
 )
 def refresh_status(n, tags, current_process, log_file):
     if n:
+        memo_text = load_s3('memory_usage.txt')
+        save_s3(memo_text + memory_usage_line(), 'memory_usage.txt')
         if tags:
             status = load_s3('status.json')
             for key in status:
@@ -782,6 +784,7 @@ def restart_play(n, chain):
 )
 def assign_log_file(n):
     if n:
+        save_s3(f'Memory usage:\n{memory_usage_line()}', 'memory_usage.txt')
         log_file = f'l/logs_{time_suffix(6)}.txt'
         parent = f'{os.getpid()}_{time_suffix()}'
         tags = {'parent': parent, 'logs': log_file, 'proc': 0, 'agent': 0}

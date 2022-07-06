@@ -186,6 +186,13 @@ def vacuum_cleaner(parent):
         time.sleep(dash_intervals['vc'])
 
 
+def memory_usage_line():
+    memo = psutil.virtual_memory()
+    mb = 1 << 20
+    return f'{str(datetime.now())[11:]} | total: {int(memo.total / mb)} | used: {int(memo.used / mb)} | ' \
+           f'available: {int(memo.available / mb)}\n'
+
+
 class Logger:
     msg = {
         'welcome': "Welcome! Let's do something interesting. Choose MODE of action!",
