@@ -460,7 +460,7 @@ def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, nu
                   'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl', 'agent_file': agent_file}
 
         memo_text = load_s3('memory_usage.txt')
-        memo_text += f'{str(datetime.now())[11:]} start_test on click {n}'
+        memo_text += f'{str(datetime.now())[11:]} start TEST on click {n}\'n'
         save_s3(memo_text, 'memory_usage.txt')
 
         proc = Process(target=QAgent.trial, kwargs=params, daemon=True)
@@ -611,7 +611,7 @@ def start_training(*args):
         save_s3('', log_file)
 
         memo_text = load_s3('memory_usage.txt')
-        memo_text += f'{str(datetime.now())[11:]} start_TRAIN on click {args[0]}'
+        memo_text += f'{str(datetime.now())[11:]} start TRAIN on click {args[0]}'
         save_s3(memo_text, 'memory_usage.txt')
 
         proc = Process(target=current.train_run, kwargs={'num_eps': num_eps, 'add_weights': add_weights}, daemon=True)
