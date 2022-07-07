@@ -185,10 +185,10 @@ def input_speed():
 
 if __name__ == "__main__":
 
-    while True:
-        memo = load_s3('memory_usage.txt')
-        print(memo)
-        time.sleep(60)
+    # while True:
+    #     memo = load_s3('memory_usage.txt')
+    #     print(memo)
+    #     time.sleep(60)
 
     # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
     # change the speed parameter in ms below if you like

@@ -127,14 +127,6 @@ def add_status(key, value, parent):
     save_s3(status, 'status.json')
 
 
-def delete_status(key, value):
-    status: dict = load_s3('status.json')
-    pprint(status)
-    print(status[key].pop(value, None))
-    status[key].pop(value, None)
-    save_s3(status, 'status.json')
-
-
 def memory_usage_line():
     memo = psutil.virtual_memory()
     mb = 1 << 20
