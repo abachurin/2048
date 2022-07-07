@@ -176,9 +176,10 @@ class Game:
                 print(self)
 
     # Run game for Dash "Agent Play" mode
-    def trial_run_for_thread(self, estimator, depth=0, width=1, since_empty=0, stopper=True):
+    def trial_run_for_thread(self, estimator, depth=0, width=1, since_empty=0, stopper=None):
+        parent, this_thread = stopper['parent'], stopper['n']
         while True:
-            if stopper not in globals():
+            if GAME_PANE[parent]['id'] != this_thread:
                 return
             if self.game_over(self.row):
                 self.history[self.odometer] = (self.row.copy(), self.score, -1)
@@ -196,8 +197,8 @@ class Game:
                         best_row, best_score = new_row, new_score
             self.history[self.odometer] = (self.row.copy(), self.score, best_dir)
             self.moves.append(best_dir)
-            self.row, self.score = best_row, best_score
             self.odometer += 1
+            self.row, self.score = best_row, best_score
             self.new_tile()
 
     def thread_trial(self, *args, **kwargs):

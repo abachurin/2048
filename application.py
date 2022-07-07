@@ -14,6 +14,8 @@ app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2
 application = app.server
 
 app.layout = dbc.Container([
+    dcc.Store(id='idx', storage_type='session'),
+    dcc.Interval(id='vc', interval=dash_intervals['vc']),
     dcc.Interval(id='refresh_status', interval=dash_intervals['refresh']),
     dcc.Store(id='session_tags', storage_type='session'),
     dcc.Interval(id='initiate_logs', interval=dash_intervals['initiate_logs'], n_intervals=0),
@@ -21,7 +23,6 @@ app.layout = dbc.Container([
     dcc.Store(id='running_now', storage_type='session'),
     dcc.Download(id='download_file'),
     Keyboard(id='keyboard'),
-    dcc.Store(id='chain', storage_type='session'),
     dcc.Store(id='current_process', storage_type='session'),
     dcc.Store(id='agent_for_chart', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
@@ -71,7 +72,8 @@ app.layout = dbc.Container([
         dbc.Col(dbc.Card([
             html.H6('Choose:', id='mode_text', className='mode-text'),
             dbc.DropdownMenu(id='mode_menu', label='MODE ?', color='success', className='mode-choose', disabled=True,
-                             children=[dbc.DropdownMenuItem(mode_list[v][0], id=v, n_clicks=0) for v in mode_list]),
+                             children=[dbc.DropdownMenuItem(mode_list[v][0], id=v, n_clicks=0, disabled=False)
+                                       for v in mode_list]),
             dbc.Button(id='chart_button', className='chart-button', style={'display': 'none'}),
             dbc.InputGroup([
                 dbc.InputGroupText('Game:', className='input-text'),
@@ -158,11 +160,11 @@ app.layout = dbc.Container([
 # refresh status, to keep parallel processes from closing down while the app is open in the browser,
 # script "vacuum_cleaner" is killing them afterwards
 @app.callback(
-    Output('current_process', 'data'), Output('stop_agent', 'style'),
+    Output('refresh_status', 'disabled'),
     Input('refresh_status', 'n_intervals'),
-    State('session_tags', 'data'), State('current_process', 'data'), State('log_file', 'data')
+    State('session_tags', 'data')
 )
-def refresh_status(n, tags, current_process, log_file):
+def refresh_status(n, tags):
     if n:
         memo_text = load_s3('memory_usage.txt')
         save_s3(memo_text + memory_usage_line(), 'memory_usage.txt')
@@ -174,12 +176,6 @@ def refresh_status(n, tags, current_process, log_file):
                 if value in status[key]:
                     status[key][value]['finish'] = next_check
             save_s3(status, 'status.json')
-        if current_process:
-            if not is_process_alive(current_process):
-                now = load_s3(log_file) or ''
-                save_s3(now + '\n' + Logger.msg['collapse'], log_file)
-                return None, {'display': 'none'}
-        raise PreventUpdate
     raise PreventUpdate
 
 
@@ -340,21 +336,21 @@ def enable_replay_game_button(name):
 
 
 @app.callback(
-    Output('chain', 'data'), Output('update_interval', 'disabled'), Output('choose_for_replay', 'value'),
+    Output('update_interval', 'disabled'), Output('choose_for_replay', 'value'), Output('idx', 'data'),
     Input('replay_game_button', 'n_clicks'),
-    State('choose_for_replay', 'value'), State('chain', 'data')
+    State('choose_for_replay', 'value'), State('idx', 'data')
 )
-def replay_game(name, game_file, previous_chain):
-    if name:
-        kill_chain(previous_chain)
-        chain = f'g{time_suffix()}'
+def replay_game(n, game_file, idx):
+    if n and idx:
         game = load_s3(game_file)
-        globals()[chain] = {
+        idx['n'] += 1
+        GAME_PANE[idx['parent']] = {
+            'id': idx['n'],
             'type': 'game',
             'games': game.replay(verbose=False),
             'step': 0
         }
-        return chain, False, None
+        return False, None, idx
     else:
         raise PreventUpdate
 
@@ -363,11 +359,11 @@ def replay_game(name, game_file, previous_chain):
 @app.callback(
     Output('game_card', 'children'), Output('update_interval', 'disabled'),
     Input('update_interval', 'n_intervals'),
-    State('chain', 'data')
+    State('idx', 'data')
 )
-def refresh_board(n, chain):
-    if n and chain:
-        point = globals().get(chain, None)
+def refresh_board(n, idx):
+    if n and idx:
+        point = GAME_PANE.get(idx['parent'], False)
         if not point:
             raise PreventUpdate
 
@@ -420,55 +416,51 @@ def enable_agent_play_button(name):
 
 
 @app.callback(
-    Output('chain', 'data'), Output('update_interval', 'disabled'), Output('agent_play_loading', 'className'),
+    Output('update_interval', 'disabled'), Output('idx', 'data'), Output('agent_play_loading', 'className'),
     Input('replay_agent_button', 'n_clicks'),
-    State('mode_text', 'children'), State('chain', 'data'), State('choose_stored_agent', 'value'),
-    State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value')
+    State('mode_text', 'children'), State('choose_stored_agent', 'value'), State('choose_depth', 'value'),
+    State('choose_width', 'value'), State('choose_since_empty', 'value'), State('idx', 'data'),
 )
-def start_agent_play(n, mode, previous_chain, agent_file, depth, width, empty):
+def start_agent_play(n, mode, agent_file, depth, width, empty, idx):
     if n and mode == 'Watch Agent':
-        kill_chain(previous_chain)
-        chain = f'a{time_suffix()}'
-        game_logic.__dict__[chain] = True
         agent = QAgent.load_agent(agent_file)
         estimator = agent.evaluate
         game = Game()
-        globals()[chain] = {
+        idx['n'] += 1
+        GAME_PANE[idx['parent']] = {
+            'id': idx['n'],
             'type': 'agent',
             'game': game,
             'step': 0,
         }
-        game.thread_trial(estimator, depth=depth, width=width, since_empty=empty, stopper=chain)
-        return chain, False, NUP
+        game.thread_trial(estimator, depth=depth, width=width, since_empty=empty, stopper=idx)
+        return False, idx, NUP
     else:
         raise PreventUpdate
 
 
 # Agent Test callbacks
 @app.callback(
-    Output('stop_agent', 'style'), Output('current_process', 'data'), Output('running_now', 'data'),
-    Output('session_tags', 'data'), Output('test_loading', 'className'),
+    Output('stop_agent', 'style'), Output('idx', 'data'), Output('test_loading', 'className'),
+    Output('train_agent_button', 'disabled'), Output('agent_stat_button', 'disabled'),
     Input('replay_agent_button', 'n_clicks'),
-    State('mode_text', 'children'),  State('current_process', 'data'), State('choose_stored_agent', 'value'),
-    State('choose_depth', 'value'), State('choose_width', 'value'), State('choose_since_empty', 'value'),
-    State('choose_num_eps', 'value'), State('log_file', 'data'), State('session_tags', 'data')
+    State('mode_text', 'children'),  State('choose_stored_agent', 'value'), State('choose_depth', 'value'),
+    State('choose_width', 'value'), State('choose_since_empty', 'value'), State('choose_num_eps', 'value'),
+    State('log_file', 'data'), State('idx', 'data')
 )
-def start_agent_test(n, mode, previous_proc, agent_file, depth, width, empty, num_eps, log_file, tags):
+def start_agent_test(n, mode, agent_file, depth, width, empty, num_eps, log_file, idx):
     if n and mode == 'Test Agent':
-        kill_process(previous_proc)
+        idx['a'] += 1
+        AGENT_PANE[idx['parent']] = {
+            'id': idx['a'],
+            'type': 'test'
+        }
         params = {'depth': depth, 'width': width, 'since_empty': empty, 'num': num_eps, 'console': 'web',
-                  'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl', 'agent_file': agent_file}
-
-        memo_text = load_s3('memory_usage.txt')
-        memo_text += f'{str(datetime.now())[11:]} start TEST on click {n}\'n'
-        save_s3(memo_text, 'memory_usage.txt')
-
-        proc = Process(target=QAgent.trial, kwargs=params, daemon=True)
-        proc.start()
-        pid = str(proc.pid)
-        add_status('proc', pid, tags['parent'])
-        tags['proc'] = pid
-        return {'display': 'block'}, {'pid': pid}, 'testing', tags, NUP
+                  'log_file': log_file, 'game_file': 'g/best_of_last_trial.pkl', 'agent_file': agent_file,
+                  'stopper': idx}
+        add_to_memo(f'{str(datetime.now())[11:]} start TEST on click {n}\n')
+        Thread(target=QAgent.trial, kwargs=params, daemon=True).start()
+        return {'display': 'block'}, idx, NUP, True, True
     else:
         raise PreventUpdate
 
@@ -558,32 +550,32 @@ def fill_params(is_open, agent_name, config_name):
 
 
 @app.callback(
-    Output('params_notification', 'children'), Output('current_process', 'data'),
-    Output('choose_train_agent', 'options'), Output('choose_train_agent', 'value'),
-    Output('start_training', 'disabled'), Output('loading', 'className'),
-    Output('mode_text', 'children'), Output('input_group_train', 'style'),
-    Output('running_now', 'data'), Output('session_tags', 'data'),
+    Output('params_notification', 'children'), Output('choose_train_agent', 'options'),
+    Output('choose_train_agent', 'value'), Output('start_training', 'disabled'), Output('loading', 'className'),
+    Output('mode_text', 'children'), Output('input_group_train', 'style'), Output('stop_agent', 'style'),
+    Output('train_agent_button', 'disabled'), Output('agent_stat_button', 'disabled'),
+    Output('session_tags', 'data'), Output('idx', 'data'),
     Input('start_training', 'n_clicks'),
     [State(f'par_{e}', 'value') for e in params_list] +
-    [State('choose_train_agent', 'value'), State('current_process', 'data'),
-     State('log_file', 'data'), State('session_tags', 'data')]
+    [State('choose_train_agent', 'value'), State('log_file', 'data'),
+     State('session_tags', 'data'), State('idx', 'data')]
 )
 def start_training(*args):
     if args[0]:
         message = NUP
-        new_name, new_agent_file, current_process, log_file, tags = args[1], args[-4], args[-3], args[-2], args[-1]
+        new_name, new_agent_file, log_file, tags, idx = args[1], args[-4], args[-3], args[-2], args[-1]
         ui_params = {e: args[i + 2] for i, e in enumerate(params_list[1:])}
         ui_params['n'] = int(ui_params['n'])
         bad_inputs = [e for e in ui_params if ui_params[e] is None]
         if bad_inputs:
-            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 9
+            return [my_alert(f'Parameters {bad_inputs} unacceptable', info=True)] + [NUP] * 11
         name = ''.join(x for x in new_name if (x.isalnum() or x in ('_', '.')))
         if name == 'test_agent':
             name = f'agent_{time_suffix(6)}'
         num_eps = ui_params.pop('Training episodes')
         if new_agent_file == 'New agent':
             if f'a/{name}.pkl' in list_names_s3():
-                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 9
+                return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 11
             new_config_file = f'c/config_{name}.json'
             save_s3(ui_params, new_config_file)
             message = my_alert(f'new config file {new_config_file[2:]} saved')
@@ -594,38 +586,34 @@ def start_training(*args):
             add_weights = f'weights/{current.name}.pkl'
             if current.name != name:
                 if f'a/{name}.pkl' in list_names_s3():
-                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 9
+                    return [my_alert(f'Agent with {name} already exists!', info=True)] + [NUP] * 11
                 current.name = name
                 current.file = current.name + '.pkl'
                 current.game_file = 'best_of_' + current.file
             else:
                 if name in load_s3('status.json')['agent']:
-                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 9
+                    return [my_alert(f'Agent {name} is being trained by another user', info=True)] + [NUP] * 11
             for e in ui_params:
                 setattr(current, e, ui_params[e])
-        kill_process(current_process)
+        idx['a'] += 1
+        AGENT_PANE[idx['parent']] = {
+            'id': idx['a'],
+            'type': 'train'
+        }
         current.log_file = log_file
         current.print = Logger(log_file=log_file).add
         add_status('agent', name, tags['parent'])
         tags['agent'] = name
-        save_s3('', log_file)
-
-        memo_text = load_s3('memory_usage.txt')
-        memo_text += f'{str(datetime.now())[11:]} start TRAIN on click {args[0]}'
-        save_s3(memo_text, 'memory_usage.txt')
-
-        proc = Process(target=current.train_run, kwargs={'num_eps': num_eps, 'add_weights': add_weights}, daemon=True)
-        proc.start()
-        pid = f'{proc.pid}'
-        add_status('proc', pid, tags['parent'])
-        tags['proc'] = pid
+        add_to_memo(f'{str(datetime.now())[11:]} start TRAIN on click {args[0]}\n')
+        Thread(target=current.train_run, kwargs={'num_eps': num_eps, 'add_weights': add_weights, 'stopper': idx},
+               daemon=True).start()
         if name != new_name:
             agents = [v for v in list_names_s3() if v[:2] == 'a/']
             opts = [{'label': v[2:-4], 'value': v} for v in agents] + [{'label': 'New agent', 'value': 'New agent'}]
         else:
             opts = NUP
-        return message, {'train': name, 'pid': pid}, opts, f'a/{current.file}', True, NUP, 'Choose:',\
-            {'display': 'none'}, 'training', tags
+        return message, opts, f'a/{current.file}', True, NUP, 'Choose:', {'display': 'none'}, {'display': 'block'}, \
+            True, True, tags, idx
     else:
         raise PreventUpdate
 
@@ -705,22 +693,22 @@ def make_chart(is_open, agent_file):
 # Play Yourself callbacks
 @app.callback(
     Output('play_instructions', 'is_open'), Output('gauge_group', 'style'), Output('play-yourself-group', 'style'),
-    Output('chain', 'data'), Output('update_interval', 'disabled'), Output('game_card', 'children'),
+    Output('update_interval', 'disabled'), Output('game_card', 'children'), Output('idx', 'data'),
     Input('mode_text', 'children'),
-    State('chain', 'data')
+    State('idx', 'data')
 )
-def play_yourself_start(mode, previous_chain):
+def play_yourself_start(mode, idx):
     if mode:
         if mode == 'Play':
-            kill_chain(previous_chain)
-            chain = f'g{time_suffix()}'
             game = Game()
-            globals()[chain] = {
+            idx['n'] += 1
+            GAME_PANE[idx['parent']] = {
+                'id': idx['n'],
                 'type': 'play',
-                'game': game,
+                'game': game
             }
             to_show = display_table(game.row, game.score, game.odometer, 0, self_play=True)
-            return True, {'display': 'none'}, {'display': 'block'}, chain, True, to_show
+            return True, {'display': 'none'}, {'display': 'block'}, True, to_show, idx
         else:
             return False, {'display': 'block'}, {'display': 'none'}, NUP, NUP, NUP
     else:
@@ -730,14 +718,14 @@ def play_yourself_start(mode, previous_chain):
 @app.callback(
     Output('game_card', 'children'),
     Input('keyboard', 'n_keydowns'),
-    State('keyboard', 'keydown'), State('mode_text', 'children'), State('chain', 'data')
+    State('keyboard', 'keydown'), State('mode_text', 'children'), State('idx', 'data')
 )
-def keyboard_play(n, event, mode, chain):
+def keyboard_play(n, event, mode, idx):
     if n and mode == 'Play':
         key = json.dumps(event).split('"')[3]
         if key.startswith('Arrow'):
             move = keyboard_dict[key[5:]]
-            game = globals()[chain]['game']
+            game = GAME_PANE[idx['parent']]['game']
             new_row, new_score, change = game.pre_move(game.row, game.score, move)
             if not change:
                 raise PreventUpdate
@@ -755,14 +743,14 @@ def keyboard_play(n, event, mode, chain):
 @app.callback(
     Output('game_card', 'children'),
     [Input(f'move_{i}', 'n_clicks') for i in range(4)],
-    State('chain', 'data')
+    State('idx', 'data')
 )
 def button_play(*args):
     ctx = dash.callback_context
     if not ctx.triggered:
         raise PreventUpdate
     move = int(ctx.triggered[0]['prop_id'].split('.')[0][-1])
-    game = globals()[args[-1]]['game']
+    game = GAME_PANE[args[-1]['parent']]['game']
     new_row, new_score, change = game.pre_move(game.row, game.score, move)
     if not change:
         raise PreventUpdate
@@ -776,12 +764,12 @@ def button_play(*args):
 @app.callback(
     Output('game_card', 'children'),
     Input('restart_play', 'n_clicks'),
-    State('chain', 'data')
+    State('idx', 'data')
 )
-def restart_play(n, chain):
+def restart_play(n, idx):
     if n:
         game = Game()
-        globals()[chain]['game'] = game
+        GAME_PANE[idx['parent']]['game'] = game
         return display_table(game.row, game.score, game.odometer, 0, self_play=True)
     else:
         raise PreventUpdate
@@ -790,20 +778,45 @@ def restart_play(n, chain):
 # Log window callbacks
 @app.callback(
     Output('log_file', 'data'), Output('session_tags', 'data'), Output('initiate_logs', 'disabled'),
-    Output('description_button', 'n_clicks'), Output('mode_menu', 'disabled'),
+    Output('description_button', 'n_clicks'), Output('mode_menu', 'disabled'), Output('idx', 'data'),
     Input('initiate_logs', 'n_intervals')
 )
 def assign_log_file(n):
     if n:
         save_s3(f'Memory usage:\n{memory_usage_line()}', 'memory_usage.txt')
         log_file = f'l/logs_{time_suffix(6)}.txt'
-        parent = f'{os.getpid()}_{time_suffix()}'
-        tags = {'parent': parent, 'logs': log_file, 'proc': 0, 'agent': 0}
+        parent = f'{os.getpid()}_{time_suffix(6)}'
+        GAME_PANE[parent] = {}
+        AGENT_PANE[parent] = {}
+        tags = {'parent': parent, 'logs': log_file, 'agent': 'none'}
         add_status('logs', log_file, tags['parent'])
-        Process(target=vacuum_cleaner, args=(parent,), daemon=True).start()
-        return log_file, tags, True, 1, False
+        return log_file, tags, True, 1, False, {'parent': parent, 'n': 0, 'a': 0}
     else:
         raise PreventUpdate
+
+
+@app.callback(
+    Output('vc', 'disabled'),
+    Input('vc', 'n_intervals')
+)
+def vacuum_cleaner(n):
+    if n:
+        status: dict = load_s3('status.json')
+        now = datetime.utcnow()
+        for key in status:
+            to_delete = []
+            for value in status[key]:
+                finish = parser.parse(status[key][value]['finish'])
+                if now > finish:
+                    if key == 'logs':
+                        delete_s3(value)
+                    to_delete.append(value)
+            for v in to_delete:
+                if v in status[key]:
+                    del status[key][v]
+
+        save_s3(status, 'status.json')
+    raise PreventUpdate
 
 
 @app.callback(
@@ -868,18 +881,21 @@ def enable_stop_agent_button(current_process):
 
 
 @app.callback(
-    Output('current_process', 'data'), Output('stop_agent', 'style'), Output('running_now', 'data'),
+    Output('stop_agent', 'style'), Output('session_tags', 'data'),
+    Output('train_agent_button', 'disabled'), Output('agent_stat_button', 'disabled'),
     Input('stop_agent', 'n_clicks'),
-    State('current_process', 'data'), State('log_file', 'data')
+    State('idx', 'data'), State('session_tags', 'data')
 )
-def stop_agent(n, current_process, log_file):
+def stop_agent(n, idx, tags):
     if n:
-        kill_process(current_process)
-        if current_process and 'train' in current_process:
-            delete_status('agent', current_process['train'])
-        now = load_s3(log_file) or ''
-        save_s3(now + '\n' + Logger.msg['stop'], log_file)
-        return None, {'display': 'none'}, None
+        AGENT_PANE[idx['parent']]['id'] = -1
+
+        if AGENT_PANE[idx['parent']]['type'] == 'train':
+            status: dict = load_s3('status.json')
+            status['agent'].pop(tags['agent'], None)
+            save_s3(status, 'status.json')
+            tags['agent'] = 'none'
+        return {'display': 'none'}, tags, False, False
     else:
         raise PreventUpdate
 
@@ -893,7 +909,6 @@ app.clientside_callback(
 
 if __name__ == '__main__':
 
-    # make_empty_status(); sys.exit()
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    # application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
 

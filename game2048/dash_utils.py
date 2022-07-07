@@ -10,7 +10,6 @@ from dash_extensions import Keyboard
 import plotly.express as px
 
 from .r_learning import *
-from . import game_logic
 
 # Some necessary variables and useful functions
 mode_list = {
@@ -110,10 +109,3 @@ def params_line(e):
             dbc.InputGroupText(e, className='par-input-text no-border'),
             dbc.Select(id=f'par_{e}', options=opt_list(data['options']),
                        className='par-select-field no-border')], className='no-border')
-
-
-def kill_chain(chain_name):
-    if chain_name and chain_name in globals():
-        del globals()[chain_name]
-        if chain_name in game_logic.__dict__:
-            del game_logic.__dict__[chain_name]

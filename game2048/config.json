@@ -21,8 +21,8 @@
     },
     "intervals": {
         "refresh_sec": 60,
-        "vc": 300,
-        "initiate_logs": 500,
+        "vc_sec": 300,
+        "initiate_logs": 3000,
         "logs": 1000
     }
 }

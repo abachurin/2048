@@ -22,8 +22,12 @@ with open(os.path.join(working_directory, 'config.json'), 'r') as f:
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
 dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
+dash_intervals['vc'] = dash_intervals['vc_sec'] * 1000
 dash_intervals['next'] = dash_intervals['refresh_sec'] + 180
 LOWEST_SPEED = 50
+
+GAME_PANE = {}
+AGENT_PANE = {}
 
 
 s3_bucket_name = 'ab2048'
@@ -114,10 +118,6 @@ def save_s3(data, name):
     return 1
 
 
-def make_empty_status():
-    save_s3({'logs': {}, 'proc': {}, 'occupied_agents': []}, 'status.json')
-
-
 def add_status(key, value, parent):
     status: dict = load_s3('status.json')
     status[key][value] = {
@@ -129,61 +129,10 @@ def add_status(key, value, parent):
 
 def delete_status(key, value):
     status: dict = load_s3('status.json')
+    pprint(status)
+    print(status[key].pop(value, None))
     status[key].pop(value, None)
     save_s3(status, 'status.json')
-
-
-def is_process_alive(data):
-    if not data:
-        return False
-    pid = data['pid']
-    if (not pid) or (not psutil.pid_exists(int(pid))):
-        return False
-    if psutil.Process(int(pid)).status() != psutil.STATUS_RUNNING:
-        kill_process(data)
-        return False
-    return True
-
-
-def kill_process(data, delete=True):
-    if not data:
-        return
-    pid = data['pid']
-    if pid and psutil.pid_exists(int(pid)):
-        psutil.Process(int(pid)).kill()
-    if delete:
-        status: dict = load_s3('status.json')
-        status['proc'].pop(pid, None)
-        save_s3(status, 'status.json')
-
-
-def vacuum_cleaner(parent):
-    time.sleep(dash_intervals['vc'])
-    while True:
-        status: dict = load_s3('status.json')
-        my_tags = 0
-        now = datetime.utcnow()
-
-        for key in status:
-            to_delete = []
-            for value in status[key]:
-                finish = parser.parse(status[key][value]['finish'])
-                if status[key][value]['parent'] == parent:
-                    my_tags += 1
-                if now > finish:
-                    if key == 'logs':
-                        delete_s3(value)
-                    elif key == 'proc' and status[key][value]['parent'] == parent:
-                        kill_process({'pid': value}, delete=False)
-                    to_delete.append(value)
-            for v in to_delete:
-                if v in status[key]:
-                    del status[key][v]
-
-        save_s3(status, 'status.json')
-        if not my_tags:
-            sys.exit()
-        time.sleep(dash_intervals['vc'])
 
 
 def memory_usage_line():
@@ -193,12 +142,15 @@ def memory_usage_line():
            f'available: {int(memo.available / mb)}\n'
 
 
+def add_to_memo(text):
+    memo_text = load_s3('memory_usage.txt')
+    memo_text += text
+    save_s3(memo_text, 'memory_usage.txt')
+
+
 class Logger:
     msg = {
         'welcome': "Welcome! Let's do something interesting. Choose MODE of action!",
-        'stop': 'Process terminated by user',
-        'training': 'Current process: training agent',
-        'testing': 'Current process: collecting agent statistics',
         'collapse': 'Current process collapsed!'
     }
 

@@ -254,21 +254,24 @@ class QAgent:
     # you only lose last <100 episodes. Also, after reloading the agent one can adjust the learning rate,
     # decay of this rate etc. Helps with the experimentation.
 
-    def train_run(self, num_eps=100000, add_weights='already', saving=True):
+    def train_run(self, num_eps=100000, add_weights='already', saving=True, stopper=None):
         if add_weights == 'add':
             self.init_weights()
         elif add_weights != 'already':
+            self.print('loading weights ...')
             self.weights = load_s3(add_weights)
             self.np_to_list()
+        if stopper:
+            parent, this_thread = stopper['parent'], stopper['a']
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         best_of_1000 = Game()
-        save_steps = 250 if self.n <= 5 else 500
         global_start = start = time.time()
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
-        self.print(f'Agent will be saved every {save_steps} episodes')
+        self.print(f'Agent will be saved every 1000 episodes and on STOP command')
         for i in range(self.step + 1, self.step + num_eps + 2):
-
+            if stopper and (AGENT_PANE[parent]['id'] != this_thread):
+                break
             # check if it's time to decay learning rate
             if self.step > self.next_decay and self.alpha > self.low_alpha_limit:
                 self.decay_alpha()
@@ -296,10 +299,6 @@ class QAgent:
                 ma = int(np.mean(ma100))
                 self.train_history.append(ma)
                 self.print(f'episode {i}: score {game.score} reached {1 << max_tile} ma_100 = {ma}')
-            if i % save_steps == 0:
-                t = time.time()
-                self.save_agent()
-                self.print(f'agent saved in {self.file}')
             if i % 1000 == 0:
                 average = np.mean(av1000)
                 self.print('\n------')
@@ -323,15 +322,18 @@ class QAgent:
                     self.save_agent()
                     self.print(f'agent saved in {self.file}')
                 best_of_1000 = Game()
-        self.print(f'Total time for {num_eps} = {time.time() - global_start}')
+        total_time = int(time.time() - global_start)
+        self.print(f'Total time = {total_time // 60} min {total_time % 60} sec')
         if saving:
             self.save_agent()
-            self.print(f'agent saved in {self.file}')
+            self.print(f'agent saved in {self.file}\n------------------------\n')
 
     @staticmethod
     def trial(estimator=None, agent_file=None, limit_tile=0, num=20, game_init=None, depth=0, width=1, since_empty=6,
-              storage='s3', console='local', log_file=None, game_file=None, verbose=False):
+              storage='s3', console='local', log_file=None, game_file=None, verbose=False, stopper=None):
         display = print if console == 'local' else Logger(log_file=log_file).add
+        if stopper:
+            parent, this_thread = stopper['parent'], stopper['a']
         if agent_file:
             display(f'Loading Agent from {agent_file} ...')
             agent = QAgent.load_agent(agent_file)
@@ -341,6 +343,8 @@ class QAgent:
         start = time.time()
         results = []
         for i in range(num):
+            if stopper and (AGENT_PANE[parent]['id'] != this_thread):
+                break
             now = time.time()
             game = Game() if game_init is None else game_init.copy()
             game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=since_empty,
@@ -348,6 +352,9 @@ class QAgent:
             display(f'game {i}, result {game.score}, moves {game.odometer}, achieved {1 << np.max(game.row)}, '
                     f'time = {(time.time() - now):.2f}')
             results.append(game)
+
+        if not results:
+            return
         average = np.average([v.score for v in results])
         figures = [(1 << np.max(v.row)) for v in results]
         total_odo = sum([v.odometer for v in results])
@@ -360,7 +367,7 @@ class QAgent:
         for v in results[:3]:
             message += v.__str__() + '\n' + '\n'
         elapsed = time.time() - start
-        message += f'average score of {num} runs = {average}\n' + f'8192 reached in {share(8192)}%\n' + \
+        message += f'average score of {len(results)} runs = {average}\n' + f'8192 reached in {share(8192)}%\n' + \
                    f'4096 reached in {share(4096)}%\n' + f'2048 reached in {share(2048)}%\n' + \
                    f'1024 reached in {share(1024)}%\n' + f'total time = {round(elapsed, 2)}\n' + \
                    f'average time per move = {round(elapsed / total_odo * 1000, 2)} ms\n' + \
@@ -372,5 +379,5 @@ class QAgent:
                 save_s3(results[0], game_file)
             else:
                 results[0].save_game(file=game_file)
-            display(f'Best game saved at {game_file}')
+            display(f'Best game saved at {game_file}\n------------------------\n')
         return results
