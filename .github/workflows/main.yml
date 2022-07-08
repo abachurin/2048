@@ -5,7 +5,7 @@ name: CI-CD-to-AWS-EB
 env:
   S3-BUCKET: "deploy-for-2048"
   APP-NAME: "app-game2048"
-  ENV-NAME: "Appgame2048-env-1"
+  ENV-NAME: "Appgame2048-env"
   PACKAGE-DEPLOY: "app-game2048-${{ github.sha }}.zip"
   AWS-REGION: "eu-west-1"
 
