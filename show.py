@@ -128,9 +128,9 @@ class Show:
             pygame.display.update()
 
     # watch an algorithm play on-line
-    def watch(self, estimator, depth=0, width=1, ample=6, game_init=None, speed=500):
+    def watch(self, estimator, depth=0, width=1, empty=6, game_init=None, speed=500):
         game = game_init or Game()
-        for state, move in game.generate_run(estimator=estimator, depth=depth, width=width, ample=ample):
+        for state, move in game.generate_run(estimator=estimator, depth=depth, width=width, since_empty=empty):
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
@@ -173,7 +173,7 @@ def input_speed():
         speed = input()
         try:
             speed = int(speed)
-            if speed == ' ':
+            if speed == 0:
                 return 50
             elif 10 <= speed <= 2000:
                 return speed
@@ -184,7 +184,7 @@ def input_speed():
 if __name__ == "__main__":
 
     # while True:
-    #     memo = load_s3('memory_usage.txt')
+    #     memo = '\n'.join(load_s3('memory_usage.txt').split('\n')[-10:])
     #     print(memo)
     #     time.sleep(60)
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
     print('option 0 = play yourself. Not sure why anybody would want it on a PC, but there os an option :)')
     print('option 1 = replay a game from storage')
     print('option 2 = load a trained agent from storage. Play 100 games, replay the best')
-    print('any other input - load a trained agent from storage and see it play')
+    print('option 3 - load a trained agent from storage and see it play')
 
     option = input()
     if option == '0':

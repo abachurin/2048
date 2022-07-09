@@ -147,6 +147,25 @@ class Game:
         self.moves.append(direction)
         return change
 
+    def _find_best_move(self, estimator, depth, width, since_empty):
+        best_dir, best_value = 0, - np.inf
+        best_row, best_score = None, None
+        for direction in range(4):
+            new_row, new_score, change = self.pre_move(self.row, self.score, direction)
+            if change:
+                value = self.look_forward(estimator, new_row, new_score,
+                                          depth=depth, width=width, since_empty=since_empty)
+                if value > best_value:
+                    best_dir, best_value = direction, value
+                    best_row, best_score = new_row, new_score
+        return best_dir, best_row, best_score
+
+    def _move_on(self, best_dir, best_row, best_score):
+        self.moves.append(best_dir)
+        self.odometer += 1
+        self.row, self.score = best_row, best_score
+        self.new_tile()
+
     # Run single episode
     def trial_run(self, estimator, limit_tile=0, step_limit=100000, depth=0, width=1, since_empty=0, verbose=False):
         if verbose:
@@ -157,20 +176,8 @@ class Game:
                 return
             if limit_tile and np.max(self.row) >= limit_tile:
                 break
-            best_dir, best_value = 0, - np.inf
-            best_row, best_score = None, None
-            for direction in range(4):
-                new_row, new_score, change = self.pre_move(self.row, self.score, direction)
-                if change:
-                    value = self.look_forward(estimator, new_row, new_score,
-                                              depth=depth, width=width, ample=since_empty)
-                    if value > best_value:
-                        best_dir, best_value = direction, value
-                        best_row, best_score = new_row, new_score
-            self.moves.append(best_dir)
-            self.odometer += 1
-            self.row, self.score = best_row, best_score
-            self.new_tile()
+            best_dir, best_row, best_score = self._find_best_move(estimator, depth, width, since_empty)
+            self._move_on(best_dir, best_row, best_score)
             if verbose:
                 print(f'On {self.odometer} we moved {Game.actions[best_dir]}')
                 print(self)
@@ -185,52 +192,30 @@ class Game:
                 self.history[self.odometer] = (self.row.copy(), self.score, -1)
                 self.moves.append(-1)
                 return
-            best_dir, best_value = 0, - np.inf
-            best_row, best_score = None, None
-            for direction in range(4):
-                new_row, new_score, change = self.pre_move(self.row, self.score, direction)
-                if change:
-                    value = self.look_forward(estimator, new_row, new_score,
-                                              depth=depth, width=width, ample=since_empty)
-                    if value > best_value:
-                        best_dir, best_value = direction, value
-                        best_row, best_score = new_row, new_score
+            best_dir, best_row, best_score = self._find_best_move(estimator, depth, width, since_empty)
             self.history[self.odometer] = (self.row.copy(), self.score, best_dir)
-            self.moves.append(best_dir)
-            self.odometer += 1
-            self.row, self.score = best_row, best_score
-            self.new_tile()
+            self._move_on(best_dir, best_row, best_score)
 
     def thread_trial(self, *args, **kwargs):
         Thread(target=self.trial_run_for_thread, args=args, kwargs=kwargs, daemon=True).start()
 
     # Run game for show.py
-    def generate_run(self, estimator, limit_tile=0, depth=0, width=1, ample=16):
+    def generate_run(self, estimator, limit_tile=0, depth=0, width=1, since_empty=16):
         while True:
             if self.game_over(self.row):
                 return
             if limit_tile and np.max(self.row) >= limit_tile:
                 break
-            best_dir, best_value = 0, - np.inf
-            best_row, best_score = None, None
-            for direction in range(4):
-                new_row, new_score, change = self.pre_move(self.row, self.score, direction)
-                if change:
-                    value = self.look_forward(estimator, new_row, new_score, depth=depth, width=width, ample=ample)
-                    if value > best_value:
-                        best_dir, best_value = direction, value
-                        best_row, best_score = new_row, new_score
+            best_dir, best_row, best_score = self._find_best_move(estimator, depth, width, since_empty)
             yield self, best_dir
-            self.odometer += 1
-            self.row, self.score = best_row, best_score
-            self.new_tile()
+            self._move_on(best_dir, best_row, best_score)
 
     # A kind of Expectimax algo on top of Estimator function, i.e. looking a few moves ahead
-    def look_forward(self, estimator, row, score, depth, width, ample):
+    def look_forward(self, estimator, row, score, depth, width, since_empty):
         if depth == 0:
             return estimator(row, score)
         empty = self.empty_count(row)
-        if empty >= ample:
+        if empty >= since_empty:
             return estimator(row, score)
         num_tiles = min(width, empty)
         empty_cells = self.empty(row)
@@ -250,7 +235,7 @@ class Game:
                     test_row, test_score, change = self.pre_move(new_row, score, direction)
                     if change:
                         value = self.look_forward(estimator, test_row, test_score,
-                                                  depth=depth - 1, width=width, ample=ample)
+                                                  depth=depth - 1, width=width, since_empty=since_empty)
                         best_value = max(best_value, value)
             # worst = min(worst, best_value)
             average += max(best_value, 0)

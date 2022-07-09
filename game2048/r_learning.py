@@ -49,11 +49,11 @@ def f_6(x):
     x_sq = ((x[:3, :3] << 12) + (x[1:, :3] << 8) + (x[:3, 1:] << 4) + x[1:, 1:]).ravel()
     x_middle = ((x[1: 3, 1: 3] << 16) + (x[:2, 1: 3] << 12) + (x[1: 3, :2] << 8) + (x[2:, 1: 3] << 4) + x[1: 3, 2:]
                 ).ravel()
-    y = np.minimum(x, 11)
-    x_vert_6 = (248832 * y[0: 2, 0: 3] + 20736 * y[1: 3, 0: 3] + 1728 * y[2:, 0: 3] + 144 * y[0: 2, 1:] +
-                12 * y[1: 3, 1:] + y[2:, 1:]).ravel()
-    x_hor_6 = (248832 * y[0: 3, 0: 2] + 20736 * y[0: 3, 1: 3] + 1728 * y[0: 3, 2:] + 144 * y[1:, 0: 2] +
-               12 * y[1:, 1: 3] + y[1:, 2:]).ravel()
+    y = np.minimum(x, 13)
+    x_vert_6 = (537824 * y[0: 2, 0: 3] + 38416 * y[1: 3, 0: 3] + 2744 * y[2:, 0: 3] + 196 * y[0: 2, 1:] +
+                14 * y[1: 3, 1:] + y[2:, 1:]).ravel()
+    x_hor_6 = (537824 * y[0: 3, 0: 2] + 38416 * y[0: 3, 1: 3] + 2744 * y[0: 3, 2:] + 196 * y[1:, 0: 2] +
+               14 * y[1:, 1: 3] + y[1:, 2:]).ravel()
     return np.concatenate([x_vert, x_hor, x_sq, x_middle, x_vert_6, x_hor_6])
 
 
@@ -123,7 +123,7 @@ class QAgent:
 
     def init_weights(self):
         if self.n == 6:
-            cutoff_for_6_f = 12  # hard coding this for faster performance of f_6 functions
+            cutoff_for_6_f = 14  # hard coding this for faster performance of f_6 functions
             self.weights = (np.random.random((17, 16 ** 4)) / 100).tolist() + \
                            (np.random.random((4, 16 ** 5)) / 100).tolist() + \
                            (np.random.random((12, cutoff_for_6_f ** 6)) / 100).tolist()
