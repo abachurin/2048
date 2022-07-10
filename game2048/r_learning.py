@@ -219,7 +219,7 @@ class QAgent:
             for direction in range(4):
                 new_row, new_score, change = game.pre_move(game.row, game.score, direction)
                 if change:
-                    value = self.evaluate(new_row) + new_score - game.score
+                    value = self.evaluate(new_row)
                     if value > best_value:
                         action, best_value = direction, value
                         best_row, best_score = new_row, new_score
