@@ -326,7 +326,7 @@ class QAgent:
         self.print(f'Total time = {total_time // 60} min {total_time % 60} sec')
         if saving:
             self.save_agent()
-            self.print(f'agent saved in {self.file}\n------------------------\n')
+            self.print(f'{self.name} saved at step {self.step} in {self.file}\n------------------------\n')
 
     @staticmethod
     def trial(estimator=None, agent_file=None, limit_tile=0, num=20, game_init=None, depth=0, width=1, since_empty=6,
