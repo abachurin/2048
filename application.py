@@ -101,7 +101,7 @@ app.layout = dbc.Container([
                 dbc.Button('LAUNCH!', id='replay_agent_button', disabled=True, className='launch-game'),
                 html.Div([
                     dbc.InputGroupText('N:', className='num-eps-text'),
-                    dbc.Input(id='choose_num_eps', type='number', min=10, value=100, step=10, className='num-eps-field')
+                    dbc.Input(id='choose_num_eps', type='number', min=1, value=100, step=1, className='num-eps-field')
                     ], id='num_eps', style={'display': 'none'}, className='num-eps')
                 ], id='input_group_agent', style={'display': 'none'}, className='my-input-group',
             ),
