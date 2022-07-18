@@ -87,8 +87,8 @@ def markdown_text(md_file):
         return f.read()
 
 
-def while_loading(id, top):
-    return dcc.Loading(html.Div(id=id), type='cube', color='#77b300', className='loader', style={'top': f'{top}px'})
+def while_loading(idx, top):
+    return dcc.Loading(id=idx, type='cube', color='#77b300', className='loader', style={'top': f'{top}px'})
 
 
 def params_line(e):

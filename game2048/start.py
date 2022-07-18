@@ -45,7 +45,7 @@ if LOCAL == 'local':
 elif LOCAL == 'AWS':
     s3_engine = boto3.resource('s3')
     s3_bucket = s3_engine.Bucket(s3_bucket_name)
-    LOWEST_SPEED = 75
+    LOWEST_SPEED = 100
 else:
     print('Unknown environment. Only show.py script is functional here. Check "Environment" notes in readme.md file')
 

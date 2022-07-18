@@ -264,5 +264,6 @@ class Game:
                 print(replay_game)
         if verbose:
             print('no more moves possible, final position')
-        chain[self.odometer] = (self.row.copy(), self.score, -1)
+        chain[self.odometer] = (self.row.copy(), self.score, self.moves[self.odometer])
+        chain[self.odometer + 1] = (None, None, -1)
         return chain
