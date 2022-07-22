@@ -1,4 +1,16 @@
+import os
+
 from .game_logic import *
+
+
+def check_thread(parent, benchmark):
+    now = time.time()
+    if (now - benchmark) > 2 * dash_intervals['check_run']:
+        if RUNNING[parent] == 0:
+            return 0
+        RUNNING[parent] = 0
+        return now
+    return benchmark
 
 
 # features = all adjacent pairs
@@ -266,12 +278,17 @@ class QAgent:
         av1000, ma100 = [], deque(maxlen=100)
         reached = [0] * 7
         best_of_1000 = Game()
-        global_start = start = time.time()
+        global_start = start = benchmark_time = time.time()
         self.print(f'Agent {self.name} training session started, current step = {self.step}')
         self.print(f'Agent will be saved every 1000 episodes and on STOP command')
         for i in range(self.step + 1, self.step + num_eps + 2):
-            if stopper and (AGENT_PANE[parent]['id'] != this_thread):
-                break
+            if stopper:
+                if AGENT_PANE[parent]['id'] != this_thread:
+                    break
+                benchmark_time = check_thread(parent, benchmark_time)
+                if not benchmark_time:
+                    return
+
             # check if it's time to decay learning rate
             if self.step > self.next_decay and self.alpha > self.low_alpha_limit:
                 self.decay_alpha()
@@ -340,11 +357,16 @@ class QAgent:
             estimator = agent.evaluate
             display(f'Trial run for {num} games, Agent = {agent.name}\n'
                     f'Looking forward: depth={depth}, width={width}, since_empty={since_empty}')
-        start = time.time()
+        start = benchmark_time = time.time()
         results = []
         for i in range(num):
-            if stopper and (AGENT_PANE[parent]['id'] != this_thread):
-                break
+            if stopper:
+                if AGENT_PANE[parent]['id'] != this_thread:
+                    break
+                benchmark_time = check_thread(parent, benchmark_time)
+                if not benchmark_time:
+                    return
+
             now = time.time()
             game = Game() if game_init is None else game_init.copy()
             game.trial_run(estimator, limit_tile=limit_tile, depth=depth, width=width, since_empty=since_empty,

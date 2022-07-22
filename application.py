@@ -1,3 +1,5 @@
+import os
+
 from game2048.dash_utils import *
 
 dash_directory = os.path.dirname(os.path.realpath(__file__))
@@ -166,6 +168,7 @@ app.layout = dbc.Container([
 )
 def refresh_status(n, tags):
     if n:
+        RUNNING[tags['parent']] = 1
         memo_text = load_s3('memory_usage.txt')
         save_s3(memo_text + memory_usage_line(), 'memory_usage.txt')
         if tags:
@@ -788,6 +791,7 @@ def assign_log_file(n):
         parent = f'{os.getpid()}_{time_suffix(6)}'
         GAME_PANE[parent] = {}
         AGENT_PANE[parent] = {}
+        RUNNING[parent] = 1
         tags = {'parent': parent, 'logs': log_file, 'agent': 'none'}
         add_status('logs', log_file, tags['parent'])
         return log_file, tags, True, 1, False, {'parent': parent, 'n': 0, 'a': 0}
@@ -889,7 +893,6 @@ def enable_stop_agent_button(current_process):
 def stop_agent(n, idx, tags):
     if n:
         AGENT_PANE[idx['parent']]['id'] = -1
-
         if AGENT_PANE[idx['parent']]['type'] == 'train':
             status: dict = load_s3('status.json')
             status['agent'].pop(tags['agent'], None)

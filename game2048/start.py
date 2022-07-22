@@ -22,12 +22,14 @@ with open(os.path.join(working_directory, 'config.json'), 'r') as f:
 LOCAL = os.environ.get('S3_URL', 'local')
 dash_intervals = CONF['intervals']
 dash_intervals['refresh'] = dash_intervals['refresh_sec'] * 1000
+dash_intervals['check_run'] = dash_intervals['refresh_sec'] * 2
 dash_intervals['vc'] = dash_intervals['vc_sec'] * 1000
 dash_intervals['next'] = dash_intervals['refresh_sec'] + 180
 LOWEST_SPEED = 50
 
 GAME_PANE = {}
 AGENT_PANE = {}
+RUNNING = {}
 
 
 s3_bucket_name = 'ab2048'
