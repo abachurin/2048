@@ -64,8 +64,8 @@ def f_4(X):
 # 4) The same goes for back-propagation. We only need to update 17 numbers of 1m+ on every step.
 # 5) But in fact we update 17 * 8 weights using an obvious D4 symmetry group acting on the board
 
-class Q_agent:
-
+class DQN_agent:
+    #TODO: REWRITE THIS PART TO WORK WITH A DQN approach
     save_file = "agent.npy"     # saves the weights, training step, current alpha and type of features
     feature_functions = {2: f_2, 3: f_3, 4: f_4}
     parameter_shape = {2: (24, 256), 3: (52, 4096), 4: (17, 65536)}
@@ -220,4 +220,3 @@ class Q_agent:
                 print(best_game)
                 print(f'current learning rate = {agent.alpha}')
                 print('------')
-

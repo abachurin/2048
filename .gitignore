@@ -1,1 +1,3 @@
 .vscode/
+__pycache__/
+game2048/__pycache__

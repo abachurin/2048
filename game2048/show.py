@@ -1,7 +1,9 @@
 import pygame
+from config import *
 from pygame.locals import *
 from game2048.r_learning import *
 import sys
+
 
 
 # I took the core of this game visualisation code from someone's github repo several weeks ago
@@ -119,7 +121,7 @@ class Show:
             pygame.display.update()
             pygame.time.wait(speed)
 
-    # watch an algorithm (estimator parameter) play on-line
+    # watch an algorithm (estimator parameter) play online
 
     def watch(self, estimator=estimator_lf(), game_init=None, speed=500):
         game = game_init or Game()
@@ -142,28 +144,3 @@ class Show:
         pass
 
 
-if __name__ == "__main__":
-
-    # The agent actually plays a game to 2048 in about 1 second. I set the speed of replays at 5 moves/sec,
-    # change the speed parameter in ms below if you like
-
-    print('option 0 = play yourself. Not sure why anybody would want it on a PC, but there os an option :)')
-    print('option 1 = replay the best game in the best_game.npy file')
-    print('option 2 = load the trained agent from best_agent.npy file. Play 100 games, replay the best')
-    print('any other input - load the trained agent from best_agent.npy file and see it play on-line')
-
-    option = int(input())
-    if option == 0:
-        Show().play()
-    elif option == 1:
-        game = Game.load_game("best_game.npy")
-        Show().replay(game, speed=25)
-    elif option == 2:
-        agent = Q_agent.load_agent("best_agent.npy")
-        est = agent.evaluate
-        results = Game.trial(estimator=est, num=100)
-        Show().replay(results[0], speed=200)
-    else:
-        agent = Q_agent.load_agent("best_agent.npy")
-        est = agent.evaluate
-        Show().watch(estimator=est, speed=20)
