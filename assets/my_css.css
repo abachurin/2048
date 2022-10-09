@@ -1,0 +1,465 @@
+@import './bootstrap.css';
+
+:root {
+    --param-text-len: 145px;
+}
+
+.my-header {
+    text-align: center;
+    color: var(--bs-yellow);
+}
+
+.log-box {
+    padding: 10px;
+    height: 89vh;
+    min-width: 440px;
+    min-height: 780px;
+}
+
+.mode-text {
+    position: absolute;
+    padding: 7px;
+    text-align: center;
+    color: black;
+    font-size: 18px;
+    height: 36px;
+    width: 130px;
+    top: 10px;
+    left: 10px;
+    background: var(--bs-yellow);
+    border-radius: 0.25rem;
+}
+
+.mode-choose {
+    position: absolute;
+    top: 56px;
+}
+
+.admin-page {
+    min-width: 420px;
+}
+
+.admin-page-body {
+    height: 200px;
+}
+
+.upload-file {
+	position: absolute;
+	width: 314px;
+	height: 140px;
+	top: 10px;
+	padding: 10px;
+	background: var(--bs-white);
+	border-radius: 0.25rem;
+}
+
+.choose-file {
+    position: absolute;
+    left: 131px;
+    top: 16px;
+    width: 200px;
+    height: 38px;
+    padding-left: 5px;
+    border-radius: 0.25rem;
+}
+
+.admin-go {
+    position: absolute;
+    left: 348px;
+    top: 16px;
+    text-transform: uppercase;
+    background: var(--bs-yellow);
+}
+
+.admin-notification {
+    top: 8px;
+    right: 40px;
+    white-space: pre;
+    height: 38px;
+    padding: 0.25rem 0.25rem
+}
+
+.my-input-group {
+    position: absolute;
+    left: 150px;
+    width: calc(100% - 160px);
+    border: 2px solid var(--bs-black);
+    border-radius: 0rem;
+}
+
+.input-text {
+    position: absolute;
+    width: 75px;
+    height: 36px;
+    background: var(--bs-gray-600);
+    border: 2px solid var(--bs-black);
+    border-radius: 0rem;
+}
+
+.input-field {
+    position: absolute;
+    padding-left: 10px;
+    left: 75px;
+    width: calc(100% - 75px);
+    height: 36px;
+    border: 2px solid var(--bs-black);
+    border-radius: 0rem;
+}
+
+.config-text {
+    top: 38px;
+}
+
+.config-input {
+    top: 2px;
+}
+
+.go-to-params {
+    position: absolute;
+    top: 10px;
+    width: 200px;
+    background: var(--bs-pink);
+    border-radius: 0rem;
+}
+
+.cell {
+    position: absolute;
+    width: 98px;
+    height: 98px;
+    padding-top: 32px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 500;
+    color: black
+}
+
+.game-header {
+    padding: 5px;
+    text-align: center;
+    white-space: pre;
+    color: white;
+    background: var(--bs-blue);
+}
+
+.gauge-group {
+    position: absolute;
+    top: 470px;
+    width: 100%;
+    min-width: 420px;
+}
+
+.gauge {
+    position: absolute;
+    top: 0px;
+    left: calc(50% - 120px);
+}
+
+.speed-header {
+    position: absolute;
+    top: 190px;
+    left: calc(50% - 24px);
+}
+
+.slider {
+    position: absolute;
+    width: 420px;
+    top: 220px;
+    left: calc(50% - 210px);
+}
+
+.button-line {
+    position: absolute;
+    width: 420px;
+    height: 38px;
+    top: 260px;
+    left: calc(50% - 210px);
+}
+
+.one-button {
+    position: absolute;
+    width: 120px;
+    color: white;
+    background: var(--bs-blue);
+}
+
+.pause-button {
+    left: 60px;
+}
+
+.resume-button {
+    left: 240px;
+}
+
+.logs-window {
+    position: absolute;
+    top: 200px;
+    height: calc(100% - 240px);
+    width: calc(100% - 20px);
+    background: var(--bs-gray-800);
+    border-radius: 0.25rem;
+}
+
+.logs-header {
+    text-transform: uppercase;
+    background: var(--bs-blue);
+}
+
+.logs-button {
+    position: absolute;
+    top: 3px;
+    padding: 2px;
+    height: 30px;
+    width: 120px;
+}
+
+.stop-agent {
+    right: 270px;
+    background: var(--bs-pink)
+}
+
+.logs-download {
+    right: 10px;
+}
+
+.logs-clear {
+    right: 140px;
+}
+
+.logs-display {
+    position: absolute;
+    top: 46px;
+    height: calc(100% - 76px);
+    width: 100%;
+    padding: 10px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column-reverse;
+    white-space: pre-wrap;
+    font-size: 14px;
+    line-height: 20px;
+    color: #ffb366;
+}
+
+.log-footer {
+    position: absolute;
+    top: calc(100% - 36px);
+    width: 100%;
+    height: 36px;
+    background: var(--bs-yellow);
+    color: black;
+    padding-top: 5px;
+    padding-left: 10px;
+}
+
+.params-page {
+    background: var(--bs-blue);
+    min-width: 420px;
+}
+
+.params-page-body {
+    background: var(--bs-gray);
+}
+
+.par-input-text {
+    width: var(--param-text-len);
+    border: 2px solid var(--bs-black);
+}
+
+.par-input-field {
+     width: calc(100% - var(--param-text-len));
+     padding: 10px;
+     border: 2px solid var(--bs-black);
+}
+
+.par-select-field {
+     width: calc(100% - var(--param-text-len));
+     padding: 10px;
+     border: 2px solid var(--bs-black);
+}
+
+.no-border {
+    border-radius: 0rem;
+}
+
+.start-training {
+    position: absolute;
+    width: var(--param-text-len);
+    left: 10px;
+    background: var(--bs-pink);
+}
+
+.loader {
+    position: absolute;
+    z-index: 20;
+}
+
+.uploader {
+    position: absolute;
+    top: 175px;
+    z-index: 2;
+}
+
+.chart-loader {
+    position: absolute;
+    top: 75px;
+    z-index: 2;
+}
+
+.lf-params {
+    position: absolute;
+    top: 46px;
+    width: 100%;
+    height: 84px;
+    background: var(--bs-blue);
+}
+
+.lf-cell {
+    position: absolute;
+    top: 6px;
+    height: 36px;
+    width: calc((100% - 6px) / 3);
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid var(--bs-blue);
+    border-radius: 0rem;
+}
+
+.lf-text {
+    top: 6px;
+}
+
+.lf-field {
+    top: 42px;
+}
+
+.lf-depth {
+    left: 6px;
+}
+.lf-width {
+    left: calc((100% - 12px) / 3 + 6px);
+}
+
+.lf-empty {
+    left: calc((100% - 12px) * 2 / 3 + 6px);
+}
+
+.launch-game {
+    position: absolute;
+    top: 104px;
+    width: 120px;
+    background: var(--bs-pink);
+    border-radius: 0rem;
+}
+
+.replay-game {
+    position: absolute;
+    top: 10px;
+    width: 200px;
+    background: var(--bs-pink);
+    border-radius: 0rem;
+}
+
+.num-eps {
+    position: absolute;
+    left: calc(100% - 120px);
+    top: 140px;
+}
+
+.num-eps-text {
+    position: absolute;
+    padding-left: 10px;
+    width: 40px;
+    background: var(--bs-gray-600);
+    border: 2px solid var(--bs-black);
+    border-radius: 0rem;
+}
+
+.num-eps-field {
+    position: absolute;
+    padding: 5px;
+    left: 40px;
+    width: 80px;
+    height: 36px;
+    border: 2px solid var(--bs-black);
+    border-radius: 0rem;
+}
+
+.chart-button {
+    position: absolute;
+    top: 104px;
+    width: 130px;
+    height: 86px;
+    background: #ffff00;
+    color: black;
+}
+
+#play_instructions {
+    position: absolute;
+    top: 100px;
+    left: calc(50% - 185px);
+    height: 240px;
+    width: 370px;
+    font-size: 15px;
+    color: #bfbfbf;
+    white-space: pre-wrap;
+    opacity: 0.9;
+    z-index: 100;
+}
+
+.inst-header {
+    padding-left: 100px;
+    background:  var(--bs-success);
+    color: var(--bs-white);
+    text-transform: uppercase;
+    white-space: pre;
+}
+
+.move-button {
+    position: absolute;
+    color: white;
+    font-size: 40px;
+    width: 120px;
+    height: 60px;
+    padding: 0px;
+}
+
+.move-left {
+    background: #ff00ff;
+    left: calc(50% - 200px);
+    top: 71px;
+}
+
+.move-up {
+    background: #0066ff;
+    left: calc(50% - 60px);
+    top: 30px;
+}
+
+.move-right {
+    background: #009900;
+    left: calc(50% + 80px);
+    top: 71px;
+}
+
+.move-down {
+    background: #5c0099;
+    left: calc(50% - 60px);
+    top: 110px;
+}
+
+.restart-play {
+    position: absolute;
+    background: var(--bs-yellow);
+    color: black;
+    width: 200px;
+    left: calc(50% - 100px);
+    top: 220px;
+}
+
+.guide-page {
+    min-width: 420px;
+}
+
+.md_content {
+    white-space: wrap;
+}
