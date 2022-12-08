@@ -6,7 +6,7 @@ import dash_daq as daq
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import DashProxy, MultiplexerTransform, Output, Input, State
-from dash_extensions import Keyboard
+from dash_extensions import EventListener
 import plotly.express as px
 
 from .r_learning import *

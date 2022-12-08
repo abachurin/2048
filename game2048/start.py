@@ -31,7 +31,6 @@ GAME_PANE = {}
 AGENT_PANE = {}
 RUNNING = {}
 
-
 s3_bucket_name = 'ab2048'
 if LOCAL == 'local':
     s3_credentials = CONF['s3_credentials']

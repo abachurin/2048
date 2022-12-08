@@ -389,7 +389,8 @@ class QAgent:
         for v in results[:3]:
             message += v.__str__() + '\n' + '\n'
         elapsed = time.time() - start
-        message += f'average score of {len(results)} runs = {average}\n' + f'8192 reached in {share(8192)}%\n' + \
+        message += f'average score of {len(results)} runs = {average}\n' + \
+                   f'16384 reached in {share(16384)}%\n' + f'8192 reached in {share(8192)}%\n' + \
                    f'4096 reached in {share(4096)}%\n' + f'2048 reached in {share(2048)}%\n' + \
                    f'1024 reached in {share(1024)}%\n' + f'total time = {round(elapsed, 2)}\n' + \
                    f'average time per move = {round(elapsed / total_odo * 1000, 2)} ms\n' + \

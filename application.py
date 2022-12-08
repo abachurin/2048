@@ -10,8 +10,8 @@ for i in (1, 2, 3, 4):
     with open(os.path.join(dash_directory, 'assets', f'project_{i}.md'), 'r') as f:
         project_description[i] = f.read()
 
-# App declaration and layout
-app = DashProxy(__name__, transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
+app = DashProxy(__name__, suppress_callback_exceptions=True,
+                transforms=[MultiplexerTransform()], title='RL Agent 2048', update_title=None,
                 meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}])
 application = app.server
 
@@ -24,7 +24,7 @@ app.layout = dbc.Container([
     dcc.Store(id='log_file', data=None, storage_type='session'),
     dcc.Store(id='running_now', storage_type='session'),
     dcc.Download(id='download_file'),
-    Keyboard(id='keyboard'),
+    EventListener(id='keyboard'),
     dcc.Store(id='current_process', storage_type='session'),
     dcc.Store(id='agent_for_chart', storage_type='session'),
     dcc.Interval(id='update_interval', n_intervals=0, disabled=True),
@@ -720,48 +720,30 @@ def play_yourself_start(mode, idx):
 
 @app.callback(
     Output('game_card', 'children'),
-    Input('keyboard', 'n_keydowns'),
-    State('keyboard', 'keydown'), State('mode_text', 'children'), State('idx', 'data')
+    [Input(f'move_{i}', 'n_clicks') for i in range(4)] + [Input('keyboard', 'event')],
+    State('mode_text', 'children'), State('idx', 'data')
 )
-def keyboard_play(n, event, mode, idx):
-    if n and mode == 'Play':
-        key = json.dumps(event).split('"')[3]
-        if key.startswith('Arrow'):
-            move = keyboard_dict[key[5:]]
-            game = GAME_PANE[idx['parent']]['game']
-            new_row, new_score, change = game.pre_move(game.row, game.score, move)
-            if not change:
+def button_and_keyboard_play(*args):
+    ctx = dash.callback_context.triggered[0]
+    if args[-2] == 'Play' and ctx['prop_id'] != '.':
+        if ctx['prop_id'] == 'keyboard.event':
+            key = ctx['value']['key']
+            if not key.startswith('Arrow'):
                 raise PreventUpdate
-            game.odometer += 1
-            game.row, game.score = new_row, new_score
-            game.new_tile()
-            next_move = -1 if game.game_over(game.row) else 0
-            return display_table(game.row, game.score, game.odometer, next_move, self_play=True)
+            move = keyboard_dict[key[5:]]
         else:
+            move = int(ctx['prop_id'].split('.')[0][-1])
+        game = GAME_PANE[args[-1]['parent']]['game']
+        new_row, new_score, change = game.pre_move(game.row, game.score, move)
+        if not change:
             raise PreventUpdate
+        game.odometer += 1
+        game.row, game.score = new_row, new_score
+        game.new_tile()
+        next_move = -1 if game.game_over(game.row) else 0
+        return display_table(game.row, game.score, game.odometer, next_move, self_play=True)
     else:
         raise PreventUpdate
-
-
-@app.callback(
-    Output('game_card', 'children'),
-    [Input(f'move_{i}', 'n_clicks') for i in range(4)],
-    State('idx', 'data')
-)
-def button_play(*args):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        raise PreventUpdate
-    move = int(ctx.triggered[0]['prop_id'].split('.')[0][-1])
-    game = GAME_PANE[args[-1]['parent']]['game']
-    new_row, new_score, change = game.pre_move(game.row, game.score, move)
-    if not change:
-        raise PreventUpdate
-    game.odometer += 1
-    game.row, game.score = new_row, new_score
-    game.new_tile()
-    next_move = -1 if game.game_over(game.row) else 0
-    return display_table(game.row, game.score, game.odometer, next_move, self_play=True)
 
 
 @app.callback(
@@ -906,11 +888,13 @@ def stop_agent(n, idx, tags):
 app.clientside_callback(
     ClientsideFunction(namespace='clientside', function_name='make_draggable'),
     Output('play_instructions', 'className'),
-    State('play_instructions', 'id'), Input('play_instructions', 'is_open')
+    Input('play_instructions', 'is_open'), State('play_instructions', 'id')
 )
 
 
 if __name__ == '__main__':
 
-    # app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
-    application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=(LOCAL == 'local'), use_reloader=False)
+    if LOCAL == 'local':
+        app.run_server(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True, use_reloader=False)
+    else:
+        application.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=False, use_reloader=False)

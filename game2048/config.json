@@ -1,5 +1,5 @@
 {
-    "s3_credentials": "/Users/aleksej/AWS/s3_user_2048.json",
+    "s3_credentials": "/Users/abachurin/aws/s3_user_2048.json",
     "cell_size": 100,
     "colors": {
         "0": "#f2f2f2",

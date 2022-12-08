@@ -5,6 +5,6 @@ services:
     container_name: game_2048
     restart: always
     environment:
-      - APP_NAME=Olatag
+      - APP_NAME=game_2048
     ports:
       - "5000:5000"
